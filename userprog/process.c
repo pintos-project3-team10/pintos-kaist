@@ -50,8 +50,12 @@ process_create_initd (const char *file_name) {
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
 
+	char *save_ptr;
+	char *token;
+	token = strtok_r(file_name, " ", &save_ptr);
+
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+	tid = thread_create (token, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -158,12 +162,101 @@ error:
 	thread_exit ();
 }
 
+void argument_stack(char **parse, int count, struct intr_frame *_if) { 
+	// 유저 스택에 프로그램 이름과 인자들을 저장하는 함수
+	// parse: 프로그램 이름과 인자가 저장되어있는 메모리 공간, count: 인자의 개수, rsp: 스택포인터
+
+	// 프로그램 이름 및 인자(문자열) push
+	int i, j;
+	uintptr_t ptr_list[count];
+	for(i = count-1; i>-1;i--) {
+		// printf("before %s\n", parse[i]);
+		_if->rsp = _if->rsp - (strlen(parse[i])+1);
+		memcpy(_if->rsp, parse[i], strlen(parse[i])+1);
+		// printf("pointer %d\n", _if->rsp);
+		ptr_list[i] = _if->rsp;
+		// printf("string %s\n", _if->rsp);
+	}
+	// printf("rsp %lu\n", _if->rsp);
+
+
+	// word-align (rsp가 8의 배수가 아닌경우 8의 배수로 만들어주기)
+	// printf("word align %x\n", _if->rsp);
+	if (_if->rsp % 8 != 0) {
+			// 8의 배수로 반올림합니다.
+			_if->rsp = _if->rsp - (_if->rsp % 8);
+			// 이동한 위치에 0을 저장합니다.
+			*((uint8_t *)(_if->rsp)) = 0;
+	}
+
+	// printf("rsp %lu\n", _if->rsp);
+
+
+	// null pointer 경계
+	_if->rsp = _if->rsp - sizeof(char *);
+	*((uintptr_t *)(_if->rsp)) = 0;
+	// printf("rsp %lu\n", _if->rsp);
+  
+
+	// 프로그램 이름 및 인자 주소들 push
+	for(i = count-1; i>-1; i--) {
+		// printf("-- %lu\n", ptr_list[i]);
+		_if->rsp = _if->rsp - sizeof(uintptr_t);
+		*(uintptr_t *)_if->rsp = ptr_list[i];
+		// printf("-- %lu\n",*(uintptr_t *)_if->rsp);
+	}
+	// printf("rsp %lu\n", _if->rsp);
+
+	
+	(*_if).R.rdi = count;
+	(*_if).R.rsi = _if->rsp;
+	// printf("rdi %d\n", _if->R.rdi);
+	// printf("rsi %lu\n", _if->R.rsi);
+
+	_if->rsp = _if->rsp - 8;
+	*(uintptr_t *)_if->rsp = 0;
+
+	// printf("rsp %lu\n", _if->rsp);
+
+	// argv (문자열을 가리키는 주소들의 배열을 가리킴) push
+	// argc (문자열의 개수 저장) push)
+	// char *argv = *rsp;
+	// *rsp = *rsp - 1;
+	// *(char *)rsp = argv;
+	// *rsp = *rsp - 1;
+	// *(int *)rsp = count;
+
+
+	// fake address(0) 저장
+	// *rsp = *rsp - 1;
+	// *(void (**))rsp = 0;
+	// (*_if).rsp = *rsp;
+
+}
+
 /* Switch the current execution context to the f_name.
  * Returns -1 on fail. */
 int
 process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
+
+	/* 인자들을 띄어쓰기 기준으로 토큰화 및 토근의 개수 계산 */
+	int count = 0;
+	char *token, *parse[128], *save_ptr;
+
+	token = strtok_r(file_name, " ", &save_ptr);
+	while (token != NULL) {
+		parse[count] = token;
+		count++;
+
+		token = strtok_r(NULL, " ", &save_ptr);
+	}
+
+	// for(int i=0;i<count;i++) {
+	// 	printf("-- %s\n", parse[i]);
+	// }
+
 
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
@@ -178,6 +271,13 @@ process_exec (void *f_name) {
 
 	/* And then load the binary */
 	success = load (file_name, &_if);
+	// printf("-- before %x\n", _if.rsp);
+	uintptr_t before = _if.rsp;
+	// argument_stack(parse, count, _if) 
+	argument_stack(parse, count, &_if);
+	// printf("-- before %x\n", _if.rsp);
+
+  // hex_dump(_if.rsp, _if.rsp, before - _if.rsp, true);
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
@@ -204,6 +304,11 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+	
+	// while (1) {
+	// 	;
+	// }
+	timer_sleep(100);
 	return -1;
 }
 
