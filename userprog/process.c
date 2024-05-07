@@ -320,6 +320,8 @@ process_exit (void) {
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
+	
+	// 열러 있는 모든 파일 닫기.
 
 	process_cleanup ();
 }

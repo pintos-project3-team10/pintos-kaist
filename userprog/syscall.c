@@ -8,7 +8,10 @@
 #include "threads/flags.h"
 #include "intrinsic.h"
 #include "include/threads/init.h"
-#include <filesys/filesys.h>
+#include "include/threads/synch.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
+#include <stdlib.h>
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -26,8 +29,13 @@ void syscall_handler (struct intr_frame *);
 #define MSR_LSTAR 0xc0000082        /* Long mode SYSCALL target */
 #define MSR_SYSCALL_MASK 0xc0000084 /* Mask for the eflags */
 
+struct lock filesys_lock;
+
+
 void
 syscall_init (void) {
+	lock_init(&filesys_lock);
+
 	write_msr(MSR_STAR, ((uint64_t)SEL_UCSEG - 0x10) << 48  |
 			((uint64_t)SEL_KCSEG) << 32);
 	write_msr(MSR_LSTAR, (uint64_t) syscall_entry);
@@ -39,11 +47,20 @@ syscall_init (void) {
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 }
 
-static bool
-check_address(void *addr) {
+
+void check_address(void *addr) {
 	if (is_kernel_vaddr(addr) || pml4_get_page(thread_current()->pml4, addr) == NULL) 
-		return false;
-	return true;
+		exit(-1);
+}
+
+void check_fd(int fd, struct thread* cur_thread) {
+	if (fd < 0 || fd >= 128) {
+		exit(-1);
+	}
+	if (cur_thread->fd_table[fd] == NULL) {
+		exit(-1);
+	}
+
 }
 
 /* The main system call interface */
@@ -54,50 +71,40 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	// rax에서 syscall 번호
 	// rsp 주소와 인자가 가리키는 주소가 유저 영역인지 확인
 
-	// if (!is_user_vaddr((*f).rsp)) {
-	// 	thread_exit ();
-	// }  
-	if (!check_address(f->rsp)) {
-		thread_exit();
-	}
-
-	// printf("-- %d\n", (*f).R.rdi);
-	// printf("-- %d\n", f->R.rdi);
-	// printf("-- %d\n", f->R.rdi);
-	// printf("-- %s\n", f->R.rsi);
-	// char *argv = f->R.rsi;
-	// uint8_t count = f->R.rdi;
-	// for(int i=0;i<count;i++) {
-	// 	printf("%s\n", argv[i]);
-	// }
+	check_address(f->rsp);
 
 	uint64_t sysnum = f->R.rax;
 
 	switch(sysnum) {
 		case SYS_HALT:
-			// printf("halt!!\n");
 			halt();
 			break;
 		case SYS_EXIT:
-			// printf("exit!!\n");
 			exit(f->R.rdi);
 			thread_exit ();
 			break;
 		case SYS_CREATE:
-			// printf("create!!\n");
 			f->R.rax = create(f->R.rdi, f->R.rsi);
 			break;
 		case SYS_REMOVE:
-			// printf("remove!!\n");
 			f->R.rax = remove(f->R.rdi);
 			break;
-		case SYS_WRITE: /* Write to a file. */
-			/* code */
-			printf("%s", f->R.rsi);
+		case SYS_OPEN:
+			f->R.rax = open(f->R.rdi);
 			break;
-		// case SYS_WRITE:
-		// 	printf("write!!\n");
-		// 	break;
+		case SYS_CLOSE:
+			close(f->R.rdi);
+			break;
+		case SYS_FILESIZE:
+			f->R.rax = filesize(f->R.rdi);
+			break;
+		case SYS_READ:
+			f->R.rax = read(f->R.rdi, f->R.rsi, f->R.rdx);
+			break;
+		case SYS_WRITE:
+			// printf("%s", f->R.rsi);
+			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
+			break;
 		default:
 			thread_exit ();
 	}
@@ -136,19 +143,14 @@ void exit(int status) {
 bool create(const char *file, unsigned initial_size) {
 	// file을 이름으로 하고, 크기가 initial_size인 새로운 파일 생성
 	// 성공적으로 파일이 생성되었다면 Ture, 실패했다면 false 반환
-	if (!check_address(file)) {
-		exit(-1);
-	}
+	check_address(file);
 	return filesys_create(file, initial_size);
 }
 
 bool remove(const char *file) {
 	// file이라는 이름을 가진 파일을 삭제한다.
 	// 성공적으로 삭제했다면 True, 실패했다면 False
-	if (!check_address(file)) {
-		exit(-1);
-	}
-
+	check_address(file);
 	return filesys_remove(file);
 }
 
@@ -156,6 +158,94 @@ int open(const char *file) {
 	// file이라는 이름을 가진 파일을 연다.
 	// 성공적으로 열렸다면, 파일 식별자로 불리는 비음수 정수를 반환. 실패했다면 -1 반환.
 	// 0번, 1번 파일식별자는 이미 역할이 정해져 있다. 0: 표준 입력(STDIN_FILENO), 1: 표준 출력(STDOUT_FILENO)
+	check_address(file);
+
+	struct thread *cur_thread = thread_current();
+	struct file *file_obj = filesys_open(file);
+	if (file_obj == NULL) {
+		return -1;
+	}
+
+	cur_thread->fd_table[cur_thread->max_fd++] = file_obj;
+	return cur_thread->max_fd-1;
+}
+
+void close(int fd) {
+	// fd에 해당하는 file 찾기
+	// 메모리 해제..
+	struct thread *cur_thread = thread_current();
+	check_fd(fd, cur_thread);
+
+	file_close(cur_thread->fd_table[fd]);
+	cur_thread->fd_table[fd] = NULL;
+}
+
+int filesize(int fd) {
+	struct thread *cur_thread = thread_current();
+
+	check_fd(fd, cur_thread);
+
+	int size = file_length(cur_thread->fd_table[fd]);
+	return size;
+}
+
+int read(int fd, void *buffer, unsigned size) {
+	// fd에 해당하는 파일에서 읽어서 buffer에 size 만큼 저장
+	// 실제 읽어낸 바이트 수 반환
+	// 파일 끝에서 시도하면 0
+	// 파일이 읽어질 수 없다면 -1 (파일 끝이라서가 아닌 다른 조건 때문에 못 읽은 경우)
+
+	// 성공 시 읽은 바이트 수를 반환, 실패 시 0을 반환
+	// buffer: 읽은 데이터를 저장할 버퍼의 주소 값, size: 읽을 데이터 크기
+	// fd 값이 0일 때 키보드의 데이터를 읽어 버퍼에 저장. (input_getc())
+
+	if (fd == 0) {
+		char *buf = buffer;
+		int count = 0;
+		for(int i=0;i<size;i++) {
+			*buf = input_getc();
+			count++;
+			if (*buf == '\0') {
+				break;
+			}
+			buf++;
+		}
+
+		return count;
+	}
+
+	struct thread *cur_thread = thread_current();
+
+	check_fd(fd, cur_thread);
+	check_address(buffer);
 
 
+	lock_acquire(&filesys_lock);
+	int read_size = file_read(cur_thread->fd_table[fd], buffer, size);
+	lock_release(&filesys_lock);
+
+	return read_size;
+}
+
+int write(int fd, const void *buffer, unsigned size) {
+	// 열린 파일의 데이터를 기록 시스템 콜
+	// 성공 시 기록한 데이터의 바이트 수를 반환, 실패시 -1 반환
+	// buffer 기록 할 데이터를 저장한 버퍼의 주소값, size: 기록할 데이터 크기
+	// fd 값이 1일 때, 버퍼에 저장된 데이터를 화면에 출력. (putbuf())
+
+	if(fd == 1) {
+		putbuf(buffer, size);
+		return size;
+	}
+
+	struct thread *cur_thread = thread_current();
+
+	check_fd(fd, cur_thread);
+	check_address(buffer);
+
+	lock_acquire(&filesys_lock);
+	int write_size = file_write(cur_thread->fd_table[fd], buffer, size);
+	lock_release(&filesys_lock);
+
+	return write_size;
 }
