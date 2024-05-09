@@ -5,10 +5,10 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
-
 
 /* States in a thread's life cycle. */
 enum thread_status {
@@ -103,11 +103,22 @@ struct thread {
 	struct list donations;			/* 기부해준 스레드들을 담는 리스트 */
 	struct list_elem donation_elem;	/* thread 구조체 변환용 */
 
+	struct file* fd_table[128];
+	int max_fd;
+
+	struct intr_frame user_tf;
+	struct list child_list;
+	struct list_elem child_elem;
+	struct semaphore load_sema;
+	struct semaphore exit_sema;
+	int exit_status; // 종료 상태
+	bool is_exit; // 종료 여부
+
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
-	struct file* fd_table[128];
-	int max_fd;
+
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */

@@ -1,4 +1,7 @@
 #include <stdbool.h>
+#include "threads/interrupt.h"
+#include "threads/synch.h"
+
 
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
@@ -14,5 +17,11 @@ int open(const char*);
 int filesize(int);
 int read(int , void *, unsigned);
 int write(int , const void *, unsigned);
+void seek(int, unsigned);
+unsigned tell(int);
+void close(int);
+int fork(const char*);
+int exec(const char*);
+int wait(int );
 
 #endif /* userprog/syscall.h */

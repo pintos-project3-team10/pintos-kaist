@@ -11,6 +11,7 @@
 #include "include/threads/synch.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "include/userprog/process.h"
 #include <stdlib.h>
 
 void syscall_entry (void);
@@ -65,7 +66,7 @@ void check_fd(int fd, struct thread* cur_thread) {
 
 /* The main system call interface */
 void
-syscall_handler (struct intr_frame *f UNUSED) {
+syscall_handler (struct intr_frame *f) {
 	// TODO: Your implementation goes here.
 
 	// rax에서 syscall 번호
@@ -74,6 +75,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	check_address(f->rsp);
 
 	uint64_t sysnum = f->R.rax;
+	// thread_current()->user_tf = *f;
+	memcpy(&thread_current()->user_tf, f, sizeof(struct intr_frame));
 
 	switch(sysnum) {
 		case SYS_HALT:
@@ -81,7 +84,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_EXIT:
 			exit(f->R.rdi);
-			thread_exit ();
+			// thread_exit ();
 			break;
 		case SYS_CREATE:
 			f->R.rax = create(f->R.rdi, f->R.rsi);
@@ -104,6 +107,12 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_WRITE:
 			// printf("%s", f->R.rsi);
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
+			break;
+		case SYS_FORK:
+			f->R.rax = fork(f->R.rdi);
+			break;
+		case SYS_WAIT:
+			f->R.rax = wait(f->R.rdi);
 			break;
 		default:
 			thread_exit ();
@@ -136,6 +145,7 @@ void exit(int status) {
 	// 스레드 종료
 
 	struct thread *cur_thread = thread_current();
+	cur_thread->exit_status = status;
 	printf("%s: exit(%d)\n", cur_thread->name, status);
 	thread_exit();
 }
@@ -248,4 +258,25 @@ int write(int fd, const void *buffer, unsigned size) {
 	lock_release(&filesys_lock);
 
 	return write_size;
+}
+
+void seek(int fd, unsigned position) {
+	struct thread *cur_thread = thread_current();
+	check_fd(fd, cur_thread);
+
+	file_seek(cur_thread->fd_table[fd], position);
+}
+
+unsigned tell(int fd) {
+	struct thread *cur_thread = thread_current();
+	check_fd(fd, cur_thread);
+	return file_tell(cur_thread->fd_table[fd]);
+}
+
+int fork(const char *thread_name) {
+	return process_fork(thread_name, &thread_current()->user_tf); 
+}
+
+int wait(int pid) {
+	return process_wait(pid);
 }

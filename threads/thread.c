@@ -206,10 +206,15 @@ thread_create (const char *name, int priority,
 	t->tf.ss = SEL_KDSEG;
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
+
+
 	t->max_fd = 2;
 	for(int i=0;i<128;i++) {
 		t->fd_table[i] = NULL;
 	}
+
+	t->is_exit = false;
+	list_push_back(&thread_current()->child_list, &t->child_elem);
 
 	/* Add to run queue. */
 	thread_unblock (t);
@@ -556,6 +561,13 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->init_priority = priority;
 	t->wait_on_lock = NULL;
 	list_init(&t->donations);
+	list_init(&t->child_list);
+
+	sema_init(&t->load_sema, 0);
+	sema_init(&t->exit_sema, 0);
+
+	t->exit_status = 0;
+
 	t->magic = THREAD_MAGIC;
 }
 
