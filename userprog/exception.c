@@ -76,6 +76,10 @@ kill (struct intr_frame *f) {
 	   the kernel.  Real Unix-like operating systems pass most
 	   exceptions back to the process via signals, but we don't
 	   implement them. */
+	#ifdef USERPROG
+		if (!check_address(f->R.rax)) 
+			exit(-1);
+	#endif
 
 	/* The interrupt frame's code segment value tells us where the
 	   exception originated. */

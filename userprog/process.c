@@ -27,6 +27,8 @@ static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
 
+struct lock load_lock;
+
 /* General process initializer for initd and other process. */
 static void
 process_init (void) {
@@ -77,32 +79,14 @@ initd (void *f_name) {
 
 struct thread* get_child_process(int tid) {
 	// cur의 자식 리스트에서 tid찾기
-	// struct list *list = &thread_current()->child_list;
 
-	struct thread *cur = thread_current ();
-		struct list *child_list = &cur->child_list;
+		struct list *child_list = &thread_current()->child_list;
 		for (struct list_elem *e = list_begin(child_list); e != list_end(child_list); e = list_next(e)){
 			struct thread *t = list_entry(e, struct thread, child_elem);
 			if (t->tid == tid) {
 				return t;
 			}
 		}
-	return NULL;
-
-	// struct list_elem *child_elem = list_begin(&thread_current()->child_list);
-	// struct thread *child_thread;
-	// while (child_elem != list_end(&thread_current()->child_list)) {
-	// 	child_thread = list_entry(child_elem, struct thread, child_elem);
-	// 	if (child_thread->tid == tid) 
-	// 		return child_thread;
-	// }
-	
-	// for (e == list_begin(&thread_current()->child_list); e != list_end(&thread_current()->child_list); e = list_next(e)) {
-	// 	struct thread *find_thread = list_entry (e, struct thread, child_elem);
-	// 	if (&find_thread->tid == tid) {
-	// 		return find_thread;
-	// 	}
-	// }
 	return NULL;
 }
 
@@ -227,10 +211,10 @@ __do_fork (void *aux) {
 	if (succ)
 		do_iret (&if_);
 error:
-	current->exit_status = TID_ERROR;
-	sema_up(&current->load_sema);
-	exit(TID_ERROR);
-	// thread_exit ();
+	// current->exit_status = TID_ERROR;
+	// sema_up(&current->load_sema);
+	// exit(TID_ERROR);
+	thread_exit ();
 }
 
 void argument_stack(char **parse, int count, struct intr_frame *_if) { 
@@ -310,10 +294,10 @@ int
 process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
-
+	// printf("---- %s\n", f_name);
 	/* 인자들을 띄어쓰기 기준으로 토큰화 및 토근의 개수 계산 */
 	int count = 0;
-	char *token, *parse[64], *save_ptr; // 128이면 왜 오류인가..
+	char *token, *parse[30], *save_ptr; // 128이면 왜 오류인가..
 
 	token = strtok_r(file_name, " ", &save_ptr);
 	while (token != NULL) {
@@ -339,21 +323,24 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup ();
 
+	// struct lock load_lock;
+	// lock_init(&load_lock);
+	// lock_acquire(&load_lock);
+
 	/* And then load the binary */
 	success = load (file_name, &_if);
-	// printf("-- before %x\n", _if.rsp);
-	// uintptr_t before = _if.rsp;
-	// argument_stack(parse, count, _if) 
-	argument_stack(parse, count, &_if);
-
-	// printf("-- before %x\n", _if.rsp);
-
-  // hex_dump(_if.rsp, _if.rsp, before - _if.rsp, true);
 
 	/* If load failed, quit. */
-	palloc_free_page (file_name);
-	if (!success)
+	if (!success) {
+		palloc_free_page (file_name);
+		// lock_release(&load_lock);
+		// sema_up(&thread_current()->exec_sema);
 		return -1;
+	}
+
+	argument_stack(parse, count, &_if);
+	// sema_up(&thread_current()->exec_sema);
+	// lock_release(&load_lock);
 
 	/* Start switched process. */
 	do_iret (&_if);
@@ -388,11 +375,13 @@ process_wait (tid_t child_tid) {
 	if(child == NULL)
 		return -1;
 	if(child->is_exit) 
-		return -1;
+		return child->exit_status;
 
-	sema_down(&child->exit_sema);
+	sema_down(&child->wait_sema);
 	list_remove(&child->child_elem);	
-	return child->exit_status;
+	int exit_status = child->exit_status;
+	sema_up(&child->exit_sema);
+	return exit_status;
 
 	// while (1) {
 	// 	;
@@ -410,19 +399,20 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 	
-	// 열려 있는 모든 파일 닫기.
+	file_close(curr->running_file);
+
+	// 열려 있는 모든 파일 닫기. close 사요으로 변경
 	for(int i=2;i<curr->max_fd;i++) {
 		if (curr->fd_table[i] != NULL) {
 			file_close(curr->fd_table[i]);
 		}
 	}
 
-	
-
 	process_cleanup ();
 
 	curr->is_exit = true;
-	sema_up(&curr->exit_sema);
+	sema_up(&curr->wait_sema);
+	sema_down(&curr->exit_sema);
 	// 프로세스 디스크립터에 종료 표시
 	// sema_up. 종료되었다는 표시.
 
@@ -544,12 +534,20 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	process_activate (thread_current ());
 
+	// lock..
+	struct lock file_lock;
+	lock_init(&file_lock);
+	lock_acquire(&file_lock);
 	/* Open executable file. */
 	file = filesys_open (file_name);
 	if (file == NULL) {
+		lock_release(&file_lock);
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
 	}
+	thread_current()->running_file = file;
+	file_deny_write(file);
+	lock_release(&file_lock);
 
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -630,7 +628,10 @@ load (const char *file_name, struct intr_frame *if_) {
 
 done:
 	/* We arrive here whether the load is successful or not. */
-	file_close (file);
+	if (file == NULL) {
+		success = NULL;
+		file_close (file);
+	}
 	return success;
 }
 

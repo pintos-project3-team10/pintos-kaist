@@ -12,6 +12,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "include/userprog/process.h"
+#include "threads/palloc.h"
 #include <stdlib.h>
 
 void syscall_entry (void);
@@ -83,6 +84,7 @@ syscall_handler (struct intr_frame *f) {
 			halt();
 			break;
 		case SYS_EXIT:
+			// printf("exit %d\n", thread_current()->tid);
 			exit(f->R.rdi);
 			// thread_exit ();
 			break;
@@ -108,10 +110,20 @@ syscall_handler (struct intr_frame *f) {
 			// printf("%s", f->R.rsi);
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
+		case SYS_SEEK:
+			seek(f->R.rdi, f->R.rsi);
+			break;
+		case SYS_TELL:
+			f->R.rax = tell(f->R.rdi);
+			break;
 		case SYS_FORK:
 			f->R.rax = fork(f->R.rdi);
 			break;
+		case SYS_EXEC:
+			f->R.rax = exec(f->R.rdi);
+			break;
 		case SYS_WAIT:
+			// printf("wait %d\n", f->R.rdi);
 			f->R.rax = wait(f->R.rdi);
 			break;
 		default:
@@ -171,12 +183,15 @@ int open(const char *file) {
 	check_address(file);
 
 	struct thread *cur_thread = thread_current();
+	lock_acquire(&filesys_lock);
 	struct file *file_obj = filesys_open(file);
 	if (file_obj == NULL) {
+		lock_release(&filesys_lock);
 		return -1;
 	}
 
 	cur_thread->fd_table[cur_thread->max_fd++] = file_obj;
+	lock_release(&filesys_lock);
 	return cur_thread->max_fd-1;
 }
 
@@ -264,7 +279,9 @@ void seek(int fd, unsigned position) {
 	struct thread *cur_thread = thread_current();
 	check_fd(fd, cur_thread);
 
+	// lock_acquire(&filesys_lock);
 	file_seek(cur_thread->fd_table[fd], position);
+	// lock_release(&filesys_lock);
 }
 
 unsigned tell(int fd) {
@@ -279,4 +296,17 @@ int fork(const char *thread_name) {
 
 int wait(int pid) {
 	return process_wait(pid);
+}
+
+int exec(const char* cmd_line) {
+	check_address(cmd_line);
+	char * filename = palloc_get_page(PAL_USER);
+	memcpy(filename, cmd_line, strlen(cmd_line)+1);
+
+	int result = process_exec(filename);
+	// sema_down(&thread_current()->exec_sema);
+	if (result == -1) {
+		exit(-1);
+	}
+	return result;
 }
