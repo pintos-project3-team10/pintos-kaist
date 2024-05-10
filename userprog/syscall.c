@@ -56,7 +56,7 @@ void check_address(void *addr) {
 }
 
 void check_fd(int fd, struct thread* cur_thread) {
-	if (fd < 0 || fd >= 128) {
+	if (fd < 0 || fd >= MAX_FILE_SIZE) {
 		exit(-1);
 	}
 	if (cur_thread->fd_table[fd] == NULL) {
@@ -76,7 +76,6 @@ syscall_handler (struct intr_frame *f) {
 	check_address(f->rsp);
 
 	uint64_t sysnum = f->R.rax;
-	// thread_current()->user_tf = *f;
 	memcpy(&thread_current()->user_tf, f, sizeof(struct intr_frame));
 
 	switch(sysnum) {
@@ -130,10 +129,6 @@ syscall_handler (struct intr_frame *f) {
 			thread_exit ();
 	}
 
-	// 유저
-	// printf("%d\n", (*f).R.rax);
-
-	// printf ("system call!\n");
 }
 
 void halt() {
@@ -141,21 +136,6 @@ void halt() {
 }
 
 void exit(int status) {
-	// 현재 동작중인 유저 프로그램 종료.
-	// 커널에 상태를 리턴하면서 종료.
-	// 만약 부모 프로세스가 현재 유저 프로그램의 종료를 기다리던 중이라면, 
-	// 그 말은 종료되면서 리턴될 그 상태를 기다린다는 것.
-	// 상태 = 0 성공. 0이 아닌 값은 에러
-
-	// 현재 프로세스를 종료시키는 시스템 콜
-	// 종료 시 '프로세스 이름: exit(status)' 출력. (Process Termination maeesage)
-	// 정상적으로 종료시 status 0
-	// status 프로그램이 정상적으로 종료됐는지 확인
-
-	// 실행 중인 스레드 구조체를 가져옴
-	// 프로세스 종료 메시지 출력
-	// 스레드 종료
-
 	struct thread *cur_thread = thread_current();
 	cur_thread->exit_status = status;
 	printf("%s: exit(%d)\n", cur_thread->name, status);
@@ -163,26 +143,23 @@ void exit(int status) {
 }
 
 bool create(const char *file, unsigned initial_size) {
-	// file을 이름으로 하고, 크기가 initial_size인 새로운 파일 생성
-	// 성공적으로 파일이 생성되었다면 Ture, 실패했다면 false 반환
 	check_address(file);
 	return filesys_create(file, initial_size);
 }
 
 bool remove(const char *file) {
-	// file이라는 이름을 가진 파일을 삭제한다.
-	// 성공적으로 삭제했다면 True, 실패했다면 False
 	check_address(file);
 	return filesys_remove(file);
 }
 
 int open(const char *file) {
-	// file이라는 이름을 가진 파일을 연다.
-	// 성공적으로 열렸다면, 파일 식별자로 불리는 비음수 정수를 반환. 실패했다면 -1 반환.
-	// 0번, 1번 파일식별자는 이미 역할이 정해져 있다. 0: 표준 입력(STDIN_FILENO), 1: 표준 출력(STDOUT_FILENO)
 	check_address(file);
 
 	struct thread *cur_thread = thread_current();
+	if (cur_thread->max_fd >= MAX_FILE_SIZE) {
+		return -1;
+	}
+
 	lock_acquire(&filesys_lock);
 	struct file *file_obj = filesys_open(file);
 	if (file_obj == NULL) {
@@ -196,8 +173,6 @@ int open(const char *file) {
 }
 
 void close(int fd) {
-	// fd에 해당하는 file 찾기
-	// 메모리 해제..
 	struct thread *cur_thread = thread_current();
 	check_fd(fd, cur_thread);
 
@@ -215,14 +190,6 @@ int filesize(int fd) {
 }
 
 int read(int fd, void *buffer, unsigned size) {
-	// fd에 해당하는 파일에서 읽어서 buffer에 size 만큼 저장
-	// 실제 읽어낸 바이트 수 반환
-	// 파일 끝에서 시도하면 0
-	// 파일이 읽어질 수 없다면 -1 (파일 끝이라서가 아닌 다른 조건 때문에 못 읽은 경우)
-
-	// 성공 시 읽은 바이트 수를 반환, 실패 시 0을 반환
-	// buffer: 읽은 데이터를 저장할 버퍼의 주소 값, size: 읽을 데이터 크기
-	// fd 값이 0일 때 키보드의 데이터를 읽어 버퍼에 저장. (input_getc())
 
 	if (fd == 0) {
 		char *buf = buffer;
@@ -253,10 +220,6 @@ int read(int fd, void *buffer, unsigned size) {
 }
 
 int write(int fd, const void *buffer, unsigned size) {
-	// 열린 파일의 데이터를 기록 시스템 콜
-	// 성공 시 기록한 데이터의 바이트 수를 반환, 실패시 -1 반환
-	// buffer 기록 할 데이터를 저장한 버퍼의 주소값, size: 기록할 데이터 크기
-	// fd 값이 1일 때, 버퍼에 저장된 데이터를 화면에 출력. (putbuf())
 
 	if(fd == 1) {
 		putbuf(buffer, size);
@@ -279,9 +242,7 @@ void seek(int fd, unsigned position) {
 	struct thread *cur_thread = thread_current();
 	check_fd(fd, cur_thread);
 
-	// lock_acquire(&filesys_lock);
 	file_seek(cur_thread->fd_table[fd], position);
-	// lock_release(&filesys_lock);
 }
 
 unsigned tell(int fd) {
@@ -304,7 +265,6 @@ int exec(const char* cmd_line) {
 	memcpy(filename, cmd_line, strlen(cmd_line)+1);
 
 	int result = process_exec(filename);
-	// sema_down(&thread_current()->exec_sema);
 	if (result == -1) {
 		exit(-1);
 	}

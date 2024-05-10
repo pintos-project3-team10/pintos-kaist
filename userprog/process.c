@@ -95,20 +95,19 @@ struct thread* get_child_process(int tid) {
 tid_t
 process_fork (const char *name, struct intr_frame *if_) {
 	/* Clone current thread to new thread.*/
-	// if_인자 __do_fork로 넘겨줘야함.
-	// 인자를 어떻게 넘겨줄 수 있을까.. thread에 저장해서 넘겨줄까?..
 	struct thread *cur = thread_current();
-	// memcpy(&cur->user_tf, if_, sizeof(struct intr_frame));
 
 	int tid = thread_create (name,
 			PRI_DEFAULT, __do_fork, cur);
-	// cur의 자식 리스트에서 tid찾기
-	// 해당 세마 기다려야 함..../.	
+
 	struct thread * child = get_child_process(tid);
 	if (child == NULL) {
 		return TID_ERROR;
 	}
 	sema_down(&child->load_sema);
+	if (child->exit_status == TID_ERROR) {
+		return TID_ERROR;
+	}
 	return tid;
 }
 
@@ -147,7 +146,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	 *    permission. */
 	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
 		/* 6. TODO: if fail to insert page, do error handling. */
-		return false; // 에러를 어떻게 처리해야 하는지 모르겠다...
+		return false; 
 	}
 	return true;
 }
@@ -157,8 +156,6 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
  * Hint) parent->tf does not hold the userland context of the process.
  *       That is, you are required to pass second argument of process_fork to
  *       this function. */
-// parent->tf에는 유저모드의 context가 저장되어 있지 않다. systemcall 실행을 위해 사용했던 커널모드의 context가 저장되어 있다.
-// fork를 위한 thread_create하기 전의 tf를 사용해야 한다.
 static void
 __do_fork (void *aux) {
 	struct intr_frame if_;
@@ -192,6 +189,10 @@ __do_fork (void *aux) {
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
+	// printf("parent max_fd %d\n", parent->max_fd);
+	if(parent->max_fd > MAX_FILE_SIZE) {
+		goto error;
+	}
 	// parent fd table 복사하기.
 	for(int i=0;i<parent->max_fd;i++) {
 		if (parent->fd_table[i] == NULL)  // 오류 원인!!
@@ -199,8 +200,6 @@ __do_fork (void *aux) {
 		current->fd_table[i] = file_duplicate(parent->fd_table[i]);
 	}
 	current->max_fd = parent->max_fd;
-
-	// 복사하는 기준을 모르겠음..a
 
 
 	if_.R.rax = 0;
@@ -211,15 +210,14 @@ __do_fork (void *aux) {
 	if (succ)
 		do_iret (&if_);
 error:
-	// current->exit_status = TID_ERROR;
-	// sema_up(&current->load_sema);
-	// exit(TID_ERROR);
-	thread_exit ();
+	current->exit_status = TID_ERROR;
+	sema_up(&current->load_sema);
+	exit(-1);
+	// thread_exit ();
 }
 
 void argument_stack(char **parse, int count, struct intr_frame *_if) { 
 	// 유저 스택에 프로그램 이름과 인자들을 저장하는 함수
-	// parse: 프로그램 이름과 인자가 저장되어있는 메모리 공간, count: 인자의 개수, rsp: 스택포인터
 
 	// 프로그램 이름 및 인자(문자열) push
 	int i, j;
@@ -272,21 +270,6 @@ void argument_stack(char **parse, int count, struct intr_frame *_if) {
 	*(uintptr_t *)_if->rsp = 0;
 
 	// printf("rsp %lu\n", _if->rsp);
-
-	// argv (문자열을 가리키는 주소들의 배열을 가리킴) push
-	// argc (문자열의 개수 저장) push)
-	// char *argv = *rsp;
-	// *rsp = *rsp - 1;
-	// *(char *)rsp = argv;
-	// *rsp = *rsp - 1;
-	// *(int *)rsp = count;
-
-
-	// fake address(0) 저장
-	// *rsp = *rsp - 1;
-	// *(void (**))rsp = 0;
-	// (*_if).rsp = *rsp;
-
 }
 
 
@@ -323,24 +306,16 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup ();
 
-	// struct lock load_lock;
-	// lock_init(&load_lock);
-	// lock_acquire(&load_lock);
-
 	/* And then load the binary */
 	success = load (file_name, &_if);
 
 	/* If load failed, quit. */
 	if (!success) {
 		palloc_free_page (file_name);
-		// lock_release(&load_lock);
-		// sema_up(&thread_current()->exec_sema);
 		return -1;
 	}
 
 	argument_stack(parse, count, &_if);
-	// sema_up(&thread_current()->exec_sema);
-	// lock_release(&load_lock);
 
 	/* Start switched process. */
 	do_iret (&_if);
@@ -382,12 +357,6 @@ process_wait (tid_t child_tid) {
 	int exit_status = child->exit_status;
 	sema_up(&child->exit_sema);
 	return exit_status;
-
-	// while (1) {
-	// 	;
-	// }
-	// timer_sleep(100);
-	// return -1;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -413,9 +382,6 @@ process_exit (void) {
 	curr->is_exit = true;
 	sema_up(&curr->wait_sema);
 	sema_down(&curr->exit_sema);
-	// 프로세스 디스크립터에 종료 표시
-	// sema_up. 종료되었다는 표시.
-
 }
 
 /* Free the current process's resources. */

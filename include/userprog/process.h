@@ -1,5 +1,6 @@
 #ifndef USERPROG_PROCESS_H
 #define USERPROG_PROCESS_H
+#define MAX_FILE_SIZE 128
 
 #include "threads/thread.h"
 
