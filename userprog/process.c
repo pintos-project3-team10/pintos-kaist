@@ -446,107 +446,119 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes,
 		bool writable);
 
+
 /* Loads an ELF executable from FILE_NAME into the current thread.
  * Stores the executable's entry point into *RIP
  * and its initial stack pointer into *RSP.
  * Returns true if successful, false otherwise. */
 static bool
-load (const char *file_name, struct intr_frame *if_) {
-	struct thread *t = thread_current ();
+load(const char *file_name, struct intr_frame *if_)
+{
+	struct thread *t = thread_current();
 	struct ELF ehdr;
 	struct file *file = NULL;
 	off_t file_ofs;
 	bool success = false;
 	int i;
 
+	// arg 토큰화
+	char *token;
+	char *next_ptr;
+	// 토큰화하려는 주소가 유저 가상 메모리 범위 초과하면 에러
+	token = strtok_r(file_name, " ", &next_ptr);
+
 	/* Allocate and activate page directory. */
-	t->pml4 = pml4_create ();
+	t->pml4 = pml4_create();
 	if (t->pml4 == NULL)
 		goto done;
-	process_activate (thread_current ());
+	process_activate(thread_current());
 
-	// lock..?
+	// 정말 깐깐히 하려면 여기에 lock 걸고
 	struct lock file_lock;
 	lock_init(&file_lock);
 	lock_acquire(&file_lock);
 	/* Open executable file. */
-	file = filesys_open (file_name);
-	if (file == NULL) {
+	file = filesys_open(token);
+	if (file == NULL)
+	{
 		lock_release(&file_lock);
-		printf ("load: %s: open failed\n", file_name);
+		printf("load: %s: open failed\n", file_name);
 		goto done;
 	}
 	thread_current()->running_file = file;
 	file_deny_write(file);
 	lock_release(&file_lock);
 
+	// lock 풀어줘야 한다.
+
 	/* Read and verify executable header. */
-	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
-			|| memcmp (ehdr.e_ident, "\177ELF\2\1\1", 7)
-			|| ehdr.e_type != 2
-			|| ehdr.e_machine != 0x3E // amd64
-			|| ehdr.e_version != 1
-			|| ehdr.e_phentsize != sizeof (struct Phdr)
-			|| ehdr.e_phnum > 1024) {
-		printf ("load: %s: error loading executable\n", file_name);
+	if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr || memcmp(ehdr.e_ident, "\177ELF\2\1\1", 7) || ehdr.e_type != 2 || ehdr.e_machine != 0x3E // amd64
+		|| ehdr.e_version != 1 || ehdr.e_phentsize != sizeof(struct Phdr) || ehdr.e_phnum > 1024)
+	{
+		printf("load: %s: error loading executable\n", file_name);
 		goto done;
 	}
 
 	/* Read program headers. */
 	file_ofs = ehdr.e_phoff;
-	for (i = 0; i < ehdr.e_phnum; i++) {
+	for (i = 0; i < ehdr.e_phnum; i++)
+	{
 		struct Phdr phdr;
 
-		if (file_ofs < 0 || file_ofs > file_length (file))
+		if (file_ofs < 0 || file_ofs > file_length(file))
 			goto done;
-		file_seek (file, file_ofs);
+		file_seek(file, file_ofs);
 
-		if (file_read (file, &phdr, sizeof phdr) != sizeof phdr)
+		if (file_read(file, &phdr, sizeof phdr) != sizeof phdr)
 			goto done;
 		file_ofs += sizeof phdr;
-		switch (phdr.p_type) {
-			case PT_NULL:
-			case PT_NOTE:
-			case PT_PHDR:
-			case PT_STACK:
-			default:
-				/* Ignore this segment. */
-				break;
-			case PT_DYNAMIC:
-			case PT_INTERP:
-			case PT_SHLIB:
-				goto done;
-			case PT_LOAD:
-				if (validate_segment (&phdr, file)) {
-					bool writable = (phdr.p_flags & PF_W) != 0;
-					uint64_t file_page = phdr.p_offset & ~PGMASK;
-					uint64_t mem_page = phdr.p_vaddr & ~PGMASK;
-					uint64_t page_offset = phdr.p_vaddr & PGMASK;
-					uint32_t read_bytes, zero_bytes;
-					if (phdr.p_filesz > 0) {
-						/* Normal segment.
-						 * Read initial part from disk and zero the rest. */
-						read_bytes = page_offset + phdr.p_filesz;
-						zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
-								- read_bytes);
-					} else {
-						/* Entirely zero.
-						 * Don't read anything from disk. */
-						read_bytes = 0;
-						zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
-					}
-					if (!load_segment (file, file_page, (void *) mem_page,
-								read_bytes, zero_bytes, writable))
-						goto done;
+		switch (phdr.p_type)
+		{
+		case PT_NULL:
+		case PT_NOTE:
+		case PT_PHDR:
+		case PT_STACK:
+		default:
+			/* Ignore this segment. */
+			break;
+		case PT_DYNAMIC:
+		case PT_INTERP:
+		case PT_SHLIB:
+			goto done;
+		case PT_LOAD:
+			if (validate_segment(&phdr, file))
+			{
+				bool writable = (phdr.p_flags & PF_W) != 0;
+				uint64_t file_page = phdr.p_offset & ~PGMASK;
+				uint64_t mem_page = phdr.p_vaddr & ~PGMASK;
+				uint64_t page_offset = phdr.p_vaddr & PGMASK;
+				uint32_t read_bytes, zero_bytes;
+				if (phdr.p_filesz > 0)
+				{
+					/* Normal segment.
+					 * Read initial part from disk and zero the rest. */
+					read_bytes = page_offset + phdr.p_filesz;
+					zero_bytes = (ROUND_UP(page_offset + phdr.p_memsz, PGSIZE) - read_bytes);
 				}
 				else
+				{
+					/* Entirely zero.
+					 * Don't read anything from disk. */
+					read_bytes = 0;
+					zero_bytes = ROUND_UP(page_offset + phdr.p_memsz, PGSIZE);
+				}
+				if (!load_segment(file, file_page, (void *)mem_page,
+								  read_bytes, zero_bytes, writable))
 					goto done;
-				break;
+			}
+			else
+				goto done;
+			break;
 		}
 	}
 
 	/* Set up stack. */
-	if (!setup_stack (if_))
+	if (!setup_stack(if_))
 		goto done;
 
 	/* Start address. */
@@ -554,9 +566,65 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
+	// 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+	int count = 0;
+	for (int i = 0; i < strlen(next_ptr); i++)
+		if (next_ptr[i] == ' ')
+		{
+			char *tmp = next_ptr + i + 1;
+			while (*tmp++ == ' ')
+			{
+				count++;
+			}
+		}
+
+	int token_len = strlen(next_ptr) + strlen(token) + 1 - count;
+	int total_len = token_len % 8 == 0 ? token_len : token_len + 8 - token_len % 8;
+
+	count = 0;
+	char *data_temp = if_->rsp;
+	char **address_temp = if_->rsp - total_len;
+
+	// 8의 배수 padding
+	memset(address_temp, 0, 8 - token_len % 8);
+
+	// argv의 마지막을 나타내는 null 포인터
+	address_temp -= 1;
+	memset(address_temp, 0, 8);
+
+	// file name 이후의 arg들 stack에 넣기
+	while (token)
+	{
+		// 실제 데이터 넣기
+		data_temp -= strlen(token) + 1;
+		memcpy(data_temp, token, strlen(token) + 1);
+
+		// 포인터 넣기
+		address_temp -= 1;
+		*address_temp = data_temp;
+
+		// 다음 arg로 이동
+		token = strtok_r(NULL, " ", &next_ptr);
+		count++;
+	}
+
+	// 주소값을 역순으로 정렬해서 순서 맞추기
+	char *temp_box;
+	for (int i = 0; i < count / 2; i++)
+	{
+		temp_box = *(address_temp + i);
+		*(address_temp + i) = *(address_temp + (count - 1 - i));
+		*(address_temp + (count - 1 - i)) = temp_box;
+	}
+	// 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+
+	if_->R.rdi = count;		   // rdi : argc
+	if_->R.rsi = address_temp; // rsi : argv[0]
+	address_temp -= 1;		   // rsp : NULL 포인터 지정
+	memset(address_temp, 0, 8);
+	if_->rsp = address_temp;
 
 	success = true;
-
 done:
 	/* We arrive here whether the load is successful or not. */
 	if (file == NULL) {
@@ -564,7 +632,133 @@ done:
 		file_close (file);
 	}
 	return success;
+
+	// rox용
+	// if (file != NULL)
+	// 	t->running_file = file;
+	// /* We arrive here whether the load is successful or not. */
+	// file_deny_write(t->running_file);
+	// return success;
 }
+/* Loads an ELF executable from FILE_NAME into the current thread.
+ * Stores the executable's entry point into *RIP
+ * and its initial stack pointer into *RSP.
+ * Returns true if successful, false otherwise. */
+// static bool
+// load (const char *file_name, struct intr_frame *if_) {
+// 	struct thread *t = thread_current ();
+// 	struct ELF ehdr;
+// 	struct file *file = NULL;
+// 	off_t file_ofs;
+// 	bool success = false;
+// 	int i;
+
+// 	/* Allocate and activate page directory. */
+// 	t->pml4 = pml4_create ();
+// 	if (t->pml4 == NULL)
+// 		goto done;
+// 	process_activate (thread_current ());
+
+// 	// lock..?
+// 	struct lock file_lock;
+// 	lock_init(&file_lock);
+// 	lock_acquire(&file_lock);
+// 	/* Open executable file. */
+// 	file = filesys_open (file_name);
+// 	if (file == NULL) {
+// 		lock_release(&file_lock);
+// 		printf ("load: %s: open failed\n", file_name);
+// 		goto done;
+// 	}
+// 	thread_current()->running_file = file;
+// 	file_deny_write(file);
+// 	lock_release(&file_lock);
+
+// 	/* Read and verify executable header. */
+// 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
+// 			|| memcmp (ehdr.e_ident, "\177ELF\2\1\1", 7)
+// 			|| ehdr.e_type != 2
+// 			|| ehdr.e_machine != 0x3E // amd64
+// 			|| ehdr.e_version != 1
+// 			|| ehdr.e_phentsize != sizeof (struct Phdr)
+// 			|| ehdr.e_phnum > 1024) {
+// 		printf ("load: %s: error loading executable\n", file_name);
+// 		goto done;
+// 	}
+
+// 	/* Read program headers. */
+// 	file_ofs = ehdr.e_phoff;
+// 	for (i = 0; i < ehdr.e_phnum; i++) {
+// 		struct Phdr phdr;
+
+// 		if (file_ofs < 0 || file_ofs > file_length (file))
+// 			goto done;
+// 		file_seek (file, file_ofs);
+
+// 		if (file_read (file, &phdr, sizeof phdr) != sizeof phdr)
+// 			goto done;
+// 		file_ofs += sizeof phdr;
+// 		switch (phdr.p_type) {
+// 			case PT_NULL:
+// 			case PT_NOTE:
+// 			case PT_PHDR:
+// 			case PT_STACK:
+// 			default:
+// 				/* Ignore this segment. */
+// 				break;
+// 			case PT_DYNAMIC:
+// 			case PT_INTERP:
+// 			case PT_SHLIB:
+// 				goto done;
+// 			case PT_LOAD:
+// 				if (validate_segment (&phdr, file)) {
+// 					bool writable = (phdr.p_flags & PF_W) != 0;
+// 					uint64_t file_page = phdr.p_offset & ~PGMASK;
+// 					uint64_t mem_page = phdr.p_vaddr & ~PGMASK;
+// 					uint64_t page_offset = phdr.p_vaddr & PGMASK;
+// 					uint32_t read_bytes, zero_bytes;
+// 					if (phdr.p_filesz > 0) {
+// 						/* Normal segment.
+// 						 * Read initial part from disk and zero the rest. */
+// 						read_bytes = page_offset + phdr.p_filesz;
+// 						zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
+// 								- read_bytes);
+// 					} else {
+// 						/* Entirely zero.
+// 						 * Don't read anything from disk. */
+// 						read_bytes = 0;
+// 						zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
+// 					}
+// 					if (!load_segment (file, file_page, (void *) mem_page,
+// 								read_bytes, zero_bytes, writable))
+// 						goto done;
+// 				}
+// 				else
+// 					goto done;
+// 				break;
+// 		}
+// 	}
+
+// 	/* Set up stack. */
+// 	if (!setup_stack (if_))
+// 		goto done;
+
+// 	/* Start address. */
+// 	if_->rip = ehdr.e_entry;
+
+// 	/* TODO: Your code goes here.
+// 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
+
+// 	success = true;
+
+// done:
+// 	/* We arrive here whether the load is successful or not. */
+// 	if (file == NULL) {
+// 		success = NULL;
+// 		file_close (file);
+// 	}
+// 	return success;
+// }
 
 
 /* Checks whether PHDR describes a valid, loadable segment in
