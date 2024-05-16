@@ -78,8 +78,6 @@ initd (void *f_name) {
 }
 
 struct thread* get_child_process(int tid) {
-	// cur의 자식 리스트에서 tid찾기
-
 		struct list *child_list = &thread_current()->child_list;
 		for (struct list_elem *e = list_begin(child_list); e != list_end(child_list); e = list_next(e)){
 			struct thread *t = list_entry(e, struct thread, child_elem);
@@ -195,12 +193,11 @@ __do_fork (void *aux) {
 	}
 	// parent fd table 복사하기.
 	for(int i=0;i<parent->max_fd;i++) {
-		if (parent->fd_table[i] == NULL)  // 오류 원인!!
+		if (parent->fd_table[i] == NULL)  
 			continue; 
 		current->fd_table[i] = file_duplicate(parent->fd_table[i]);
 	}
 	current->max_fd = parent->max_fd;
-
 
 	if_.R.rax = 0;
 	sema_up(&current->load_sema);
@@ -216,60 +213,41 @@ error:
 	// thread_exit ();
 }
 
+// 유저 스택에 프로그램 이름과 인자들을 저장하는 함수
 void argument_stack(char **parse, int count, struct intr_frame *_if) { 
-	// 유저 스택에 프로그램 이름과 인자들을 저장하는 함수
 
 	// 프로그램 이름 및 인자(문자열) push
 	int i, j;
 	uintptr_t ptr_list[count];
 	for(i = count-1; i>-1;i--) {
-		// printf("before %s\n", parse[i]);
 		_if->rsp = _if->rsp - (strlen(parse[i])+1);
 		memcpy(_if->rsp, parse[i], strlen(parse[i])+1);
-		// printf("pointer %d\n", _if->rsp);
 		ptr_list[i] = _if->rsp;
-		// printf("string %s\n", _if->rsp);
 	}
-	// printf("rsp %lu\n", _if->rsp);
-
 
 	// word-align (rsp가 8의 배수가 아닌경우 8의 배수로 만들어주기)
-	// printf("word align %x\n", _if->rsp);
 	if (_if->rsp % 8 != 0) {
-			// 8의 배수로 반올림합니다.
+			// 8의 배수로 반올림
 			_if->rsp = _if->rsp - (_if->rsp % 8);
-			// 이동한 위치에 0을 저장합니다.
+			// 이동한 위치에 0을 저장
 			*((uint8_t *)(_if->rsp)) = 0;
 	}
 
-	// printf("rsp %lu\n", _if->rsp);
-
-
 	// null pointer 경계
 	_if->rsp = _if->rsp - sizeof(char *);
-	*((uintptr_t *)(_if->rsp)) = 0;
-	// printf("rsp %lu\n", _if->rsp);
-  
+	*((uintptr_t *)(_if->rsp)) = 0;  
 
 	// 프로그램 이름 및 인자 주소들 push
 	for(i = count-1; i>-1; i--) {
-		// printf("-- %lu\n", ptr_list[i]);
 		_if->rsp = _if->rsp - sizeof(uintptr_t);
 		*(uintptr_t *)_if->rsp = ptr_list[i];
-		// printf("-- %lu\n",*(uintptr_t *)_if->rsp);
 	}
-	// printf("rsp %lu\n", _if->rsp);
-
 	
 	(*_if).R.rdi = count;
 	(*_if).R.rsi = _if->rsp;
-	// printf("rdi %d\n", _if->R.rdi);
-	// printf("rsi %lu\n", _if->R.rsi);
 
 	_if->rsp = _if->rsp - 8;
 	*(uintptr_t *)_if->rsp = 0;
-
-	// printf("rsp %lu\n", _if->rsp);
 }
 
 
@@ -277,10 +255,10 @@ int
 process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
-	// printf("---- %s\n", f_name);
+
 	/* 인자들을 띄어쓰기 기준으로 토큰화 및 토근의 개수 계산 */
 	int count = 0;
-	char *token, *parse[30], *save_ptr; // 128이면 왜 오류인가..
+	char *token, *parse[30], *save_ptr; // parse 사이즈 커지면 오류 발생.
 
 	token = strtok_r(file_name, " ", &save_ptr);
 	while (token != NULL) {
@@ -289,11 +267,6 @@ process_exec (void *f_name) {
 
 		token = strtok_r(NULL, " ", &save_ptr);
 	}
-
-	// for(int i=0;i<count;i++) {
-	// 	printf("-- %s\n", parse[i]);
-	// }
-
 
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
@@ -337,15 +310,7 @@ process_wait (tid_t child_tid) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	// child_list에서 child_tid에 해당하는 자식 찾기
-	// 예외 처리 발생시 -1 리턴
-	// - 예외로 인한 종료
-	// 스레드 ID가 잘못 된 경우
-	// 호출자의 자식 스레드가 아닌 경우
-	// 이미 해당 스레드에 대해 process_wait를 호출한 경우 -> 어떻게 알 수 있는지.. 이미 종료된 스레드인 경우를 이야기 하는 건가?
-	// sema_down(exit_sema) 자식 스레드 종료될 때까지 기다리기
-	// 자식 프로세스 디스크립터 삭제.. ?
-	// return 자식 프로세스의 exit_status
+
 	struct thread *child = get_child_process(child_tid);
 	if(child == NULL)
 		return -1;
@@ -370,7 +335,7 @@ process_exit (void) {
 	
 	file_close(curr->running_file);
 
-	// 열려 있는 모든 파일 닫기. close 사요으로 변경
+	// 열려 있는 모든 파일 닫기
 	for(int i=2;i<curr->max_fd;i++) {
 		if (curr->fd_table[i] != NULL) {
 			file_close(curr->fd_table[i]);
@@ -500,7 +465,7 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	process_activate (thread_current ());
 
-	// lock..
+	// lock..?
 	struct lock file_lock;
 	lock_init(&file_lock);
 	lock_acquire(&file_lock);

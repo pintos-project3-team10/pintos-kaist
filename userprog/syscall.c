@@ -70,9 +70,6 @@ void
 syscall_handler (struct intr_frame *f) {
 	// TODO: Your implementation goes here.
 
-	// rax에서 syscall 번호
-	// rsp 주소와 인자가 가리키는 주소가 유저 영역인지 확인
-
 	check_address(f->rsp);
 
 	uint64_t sysnum = f->R.rax;
@@ -83,9 +80,7 @@ syscall_handler (struct intr_frame *f) {
 			halt();
 			break;
 		case SYS_EXIT:
-			// printf("exit %d\n", thread_current()->tid);
 			exit(f->R.rdi);
-			// thread_exit ();
 			break;
 		case SYS_CREATE:
 			f->R.rax = create(f->R.rdi, f->R.rsi);
@@ -122,7 +117,6 @@ syscall_handler (struct intr_frame *f) {
 			f->R.rax = exec(f->R.rdi);
 			break;
 		case SYS_WAIT:
-			// printf("wait %d\n", f->R.rdi);
 			f->R.rax = wait(f->R.rdi);
 			break;
 		default:
