@@ -2,8 +2,10 @@
 #define VM_VM_H
 #include <stdbool.h>
 #include "threads/palloc.h"
+#include <hash.h>
 
-enum vm_type {
+enum vm_type
+{
 	/* page not initialized */
 	VM_UNINIT = 0,
 	/* page not related to the file, aka anonymous page */
@@ -40,19 +42,26 @@ struct thread;
  * This is kind of "parent class", which has four "child class"es, which are
  * uninit_page, file_page, anon_page, and page cache (project4).
  * DO NOT REMOVE/MODIFY PREDEFINED MEMBER OF THIS STRUCTURE. */
-struct page {
+struct page
+{
 	const struct page_operations *operations;
-	void *va;              /* Address in terms of user space */
-	struct frame *frame;   /* Back reference for frame */
+	void *va;			 /* Address in terms of user space */
+	struct frame *frame; /* Back reference for frame */
 
-	/* Your implementation */
+	/* TODO
+	현재는 spt를 hash table로 구현하고 추가적인(supplemental) 정보는 넣지 않은 상태
+	앞으로 구현하면서 필요한 경우가 생길 때마다 추가적으로 구현할 예정
+	 */
+	struct hash_elem p_hash_elem;
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
-	union {
+	union
+	{
 		struct uninit_page uninit;
 		struct anon_page anon;
 		struct file_page file;
+
 #ifdef EFILESYS
 		struct page_cache page_cache;
 #endif
@@ -60,7 +69,8 @@ struct page {
 };
 
 /* The representation of "frame" */
-struct frame {
+struct frame
+{
 	void *kva;
 	struct page *page;
 };
@@ -69,44 +79,53 @@ struct frame {
  * This is one way of implementing "interface" in C.
  * Put the table of "method" into the struct's member, and
  * call it whenever you needed. */
-struct page_operations {
-	bool (*swap_in) (struct page *, void *);
-	bool (*swap_out) (struct page *);
-	void (*destroy) (struct page *);
+// file.c의 전역변수 file_ops를 본다면, 이 구조체가 인터페이스로 사용된다는 설명을 이해하기 쉽다.
+struct page_operations
+{
+	bool (*swap_in)(struct page *, void *);
+	bool (*swap_out)(struct page *);
+	void (*destroy)(struct page *);
 	enum vm_type type;
 };
 
-#define swap_in(page, v) (page)->operations->swap_in ((page), v)
-#define swap_out(page) (page)->operations->swap_out (page)
-#define destroy(page) \
-	if ((page)->operations->destroy) (page)->operations->destroy (page)
+#define swap_in(page, v) (page)->operations->swap_in((page), v)
+#define swap_out(page) (page)->operations->swap_out(page)
+#define destroy(page)                \
+	if ((page)->operations->destroy) \
+	(page)->operations->destroy(page)
 
 /* Representation of current process's memory space.
  * We don't want to force you to obey any specific design for this struct.
  * All designs up to you for this. */
-struct supplemental_page_table {
+// spt 설계
+// 해쉬 테이블로 만들고 싶은데
+// 거기 들어가는 구조체는 { 페이지 + valid(페이지 폴트용? 필요한가?) + (해쉬 테이블로 들어가야 하니까) hash_elem }
+// va가 입력으로 들어오면, 원하는 page가 바로 딱 나오는 hash table
+struct supplemental_page_table
+{
+	struct hash *spt_hash_table;
 };
 
 #include "threads/thread.h"
-void supplemental_page_table_init (struct supplemental_page_table *spt);
-bool supplemental_page_table_copy (struct supplemental_page_table *dst,
-		struct supplemental_page_table *src);
-void supplemental_page_table_kill (struct supplemental_page_table *spt);
-struct page *spt_find_page (struct supplemental_page_table *spt,
-		void *va);
-bool spt_insert_page (struct supplemental_page_table *spt, struct page *page);
-void spt_remove_page (struct supplemental_page_table *spt, struct page *page);
+void supplemental_page_table_init(struct supplemental_page_table *spt);
+bool supplemental_page_table_copy(struct supplemental_page_table *dst,
+								  struct supplemental_page_table *src);
+void supplemental_page_table_kill(struct supplemental_page_table *spt);
+struct page *spt_find_page(struct supplemental_page_table *spt,
+						   void *va);
+bool spt_insert_page(struct supplemental_page_table *spt, struct page *page);
+void spt_remove_page(struct supplemental_page_table *spt, struct page *page);
 
-void vm_init (void);
-bool vm_try_handle_fault (struct intr_frame *f, void *addr, bool user,
-		bool write, bool not_present);
+void vm_init(void);
+bool vm_try_handle_fault(struct intr_frame *f, void *addr, bool user,
+						 bool write, bool not_present);
 
 #define vm_alloc_page(type, upage, writable) \
-	vm_alloc_page_with_initializer ((type), (upage), (writable), NULL, NULL)
-bool vm_alloc_page_with_initializer (enum vm_type type, void *upage,
-		bool writable, vm_initializer *init, void *aux);
-void vm_dealloc_page (struct page *page);
-bool vm_claim_page (void *va);
-enum vm_type page_get_type (struct page *page);
+	vm_alloc_page_with_initializer((type), (upage), (writable), NULL, NULL)
+bool vm_alloc_page_with_initializer(enum vm_type type, void *upage,
+									bool writable, vm_initializer *init, void *aux);
+void vm_dealloc_page(struct page *page);
+bool vm_claim_page(void *va);
+enum vm_type page_get_type(struct page *page);
 
-#endif  /* VM_VM_H */
+#endif /* VM_VM_H */
