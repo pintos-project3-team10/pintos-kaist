@@ -4,6 +4,7 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 #include <hash.h>
+#include <mmu.h> // for pml4_walk
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -71,11 +72,15 @@ struct page *
 spt_find_page(struct supplemental_page_table *spt UNUSED, void *va UNUSED)
 {
 	struct page temp_page;
-	struct hash_elem *found_elem;
+	struct hash_elem *elem_found;
+
+	// 사용자가 요청하는 va는 반드시 page의 시작점이라는 보장이 없기 때문에
+	// pg_round_down함수로 페이지 시작점을 찾는다.
+	va = pg_round_down(va);
 
 	temp_page.va = va;
-	found_elem = hash_find(spt->spt_hash_table, &(temp_page.p_hash_elem));
-	return found_elem != NULL ? hash_entry(found_elem, struct page, p_hash_elem) : NULL;
+	elem_found = hash_find(spt->spt_hash_table, &(temp_page.p_hash_elem));
+	return elem_found != NULL ? hash_entry(elem_found, struct page, p_hash_elem) : NULL;
 }
 
 /* Insert PAGE into spt with validation. */
@@ -121,14 +126,29 @@ vm_evict_frame(void)
  * and return it. This always return valid address. That is, if the user pool
  * memory is full, this function evicts the frame to get the available memory
  * space.*/
+/* palloc을 kernel pool에서 받게 된다면, 예상치 못하게 테스트 케이스에서 실패할 수 있다.
+ 반드시 user pool에서 할당받아야 한다.
+ 이 함수로 모든 유저 공간(user pool) page들을 할당한다.
+*/
 static struct frame *
 vm_get_frame(void)
 {
 	struct frame *frame = NULL;
 	/* TODO: Fill this function. */
+	// user pool에서 할당받는다.
+	frame = palloc_get_page(PAL_USER);
+
+	// frame 초기화
+	frame->kva = ptov(frame);
+	frame->page = NULL;
 
 	ASSERT(frame != NULL);
 	ASSERT(frame->page == NULL);
+
+	// 지금은 일단 swap out 구현 전이기 때문에 todo로 표시
+	if (!frame)
+		PANIC("todo");
+
 	return frame;
 }
 
@@ -169,11 +189,17 @@ bool vm_claim_page(void *va UNUSED)
 {
 	struct page *page = NULL;
 	/* TODO: Fill this function */
+	page = palloc_get_page(PAL_USER);
+	page->va = va;
+	// 만들어진 페이지는 spt에 추가
+	hash_insert(thread_current()->spt.spt_hash_table, &(page->p_hash_elem));
 
 	return vm_do_claim_page(page);
 }
 
 /* Claim the PAGE and set up the mmu. */
+/* 인자로 주어진 page에 물리 메모리 프레임을 할당
+ */
 static bool
 vm_do_claim_page(struct page *page)
 {
@@ -184,8 +210,21 @@ vm_do_claim_page(struct page *page)
 	page->frame = frame;
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
+	/*
+	page table관련 함수를 사용해서 입력된 page의 시작주소를 frame의 시작주소와 맵핑시킨다.
+	1. pte를 찾는다.
+	2. pte의 PFN값을 vm_get_frame()함수로 할당한 frame의 kva값을 이용해서 설정한다.
+	*/
+	uint64_t *pte_found = pml4e_walk(thread_current()->pml4, page->va, page_get_type(page));
+	*pte_found = vtop(frame->kva) & ~0xFFF;
 
+	if (!pte_found)
+		return false;
+
+	return true;
+	/* not yet 아직 구현 안함
 	return swap_in(page, frame->kva);
+	*/
 }
 
 /*  spt 초기화 함수

@@ -73,6 +73,7 @@ struct frame
 {
 	void *kva;
 	struct page *page;
+	// TODO : 프레임 관리 인터페이스를 구현하는 과정에서 멤버 추가
 };
 
 /* The function table for page operations.
