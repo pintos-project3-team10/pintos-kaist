@@ -74,6 +74,7 @@ pdpe_walk(uint64_t *pdpe, const uint64_t va, int create)
  * on CREATE.  If CREATE is true, then a new page table is
  * created and a pointer into it is returned.  Otherwise, a null
  * pointer is returned. */
+// create가 true라면 즉, 페이지의 타입이 어나니머스 혹은 파일이라면 페이지 생성
 uint64_t *
 pml4e_walk(uint64_t *pml4e, const uint64_t va, int create)
 {

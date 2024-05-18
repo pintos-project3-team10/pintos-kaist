@@ -52,7 +52,10 @@ struct page
 	현재는 spt를 hash table로 구현하고 추가적인(supplemental) 정보는 넣지 않은 상태
 	앞으로 구현하면서 필요한 경우가 생길 때마다 추가적으로 구현할 예정
 	 */
+	// SPT에 넣기 위한 hash_elem
 	struct hash_elem p_hash_elem;
+	// vm_do_claim_page에서 writable 찾는 과정을 줄이기 위해 주가
+	int writable;
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
@@ -74,6 +77,9 @@ struct frame
 	void *kva;
 	struct page *page;
 	// TODO : 프레임 관리 인터페이스를 구현하는 과정에서 멤버 추가
+	// Frame_Table을 해쉬 테이블이 아닌 연결 리스트로 선언할 예정이기 때문에 Table -> List
+	// Frame_List에 들어갈 element
+	struct list_elem f_elem;
 };
 
 /* The function table for page operations.

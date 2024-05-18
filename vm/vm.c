@@ -6,6 +6,9 @@
 #include <hash.h>
 #include <mmu.h> // for pml4_walk
 
+// Frame_Table을 해쉬 테이블이 아닌 연결 리스트로 선언할 예정이기 때문에 Table -> List
+struct list frame_list;
+
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
 void vm_init(void)
@@ -138,16 +141,19 @@ vm_get_frame(void)
 	// user pool에서 할당받는다.
 	frame = palloc_get_page(PAL_USER);
 
+	// 지금은 일단 swap out 구현 전이기 때문에 todo로 표시
+	if (!frame)
+		PANIC("todo");
+
 	// frame 초기화
 	frame->kva = ptov(frame);
 	frame->page = NULL;
 
+	// 할당한 frame 을 frame_list에 추가
+	list_push_back(&frame_list, &frame->f_elem);
+
 	ASSERT(frame != NULL);
 	ASSERT(frame->page == NULL);
-
-	// 지금은 일단 swap out 구현 전이기 때문에 todo로 표시
-	if (!frame)
-		PANIC("todo");
 
 	return frame;
 }
@@ -215,13 +221,22 @@ vm_do_claim_page(struct page *page)
 	1. pte를 찾는다.
 	2. pte의 PFN값을 vm_get_frame()함수로 할당한 frame의 kva값을 이용해서 설정한다.
 	*/
-	uint64_t *pte_found = pml4e_walk(thread_current()->pml4, page->va, page_get_type(page));
-	*pte_found = vtop(frame->kva) & ~0xFFF;
+	uint64_t *pte_found = pml4e_walk(thread_current()->pml4, page->va, 1);
+	if (pte_found && (*pte_found & PTE_P))
+	{
+		pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable);
+		// & ~0xFFF 넣을지 고민
+		*pte_found = vtop(frame->kva);
+		return true;
+	}
+	return false;
+	// if (!pte_found)
+	// 	return false;
 
-	if (!pte_found)
-		return false;
+	// // & ~0xFFF 넣을지 고민
+	// *pte_found = vtop(frame->kva) & ~0xFFF;
 
-	return true;
+	// return true;
 	/* not yet 아직 구현 안함
 	return swap_in(page, frame->kva);
 	*/
