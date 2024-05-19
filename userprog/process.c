@@ -775,21 +775,19 @@ aux를 segment를 읽을 file을 찾고, 세그먼트를 page와 연결된 frame
 static bool
 lazy_load_segment(struct page *page, void *aux)
 {
-	struct lazy_aux la = *(struct lazy_aux *)aux;
-
+	struct lazy_aux *la = aux;
+	file_seek(la->file, la->ofs);
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
 	// VA가 존재한다는 뜻 -> page에 할당된 frame이 존재한다는 뜻 -> page->frame_kva가 존재한다는 뜻
+	//
+	// ASSERT((la->page_read_bytes + la->page_zero_bytes) % PGSIZE == 0);
+	// ASSERT(pg_ofs(la->upage) == 0);
+	// ASSERT(la->ofs % PGSIZE == 0);
 
-	ASSERT((la.page_read_bytes + la.page_zero_bytes) % PGSIZE == 0);
-	ASSERT(pg_ofs(la.upage) == 0);
-	ASSERT(la.ofs % PGSIZE == 0);
-
-	file_seek(la.file, la.ofs);
-
-	size_t page_read_bytes = la.page_read_bytes;
-	size_t page_zero_bytes = la.page_zero_bytes;
+	size_t page_read_bytes = la->page_read_bytes;
+	size_t page_zero_bytes = la->page_zero_bytes;
 
 	// cpu는 오직 va만 사용하고, 변환은 mmu에 전부 맡겨야 하기 때문에 vtop 매크로는 사용하지 않는다.
 	// vtop, ptov는 mmu.c 관련 코드 수정에서만 사용하면 될 것 같다.
@@ -798,9 +796,9 @@ lazy_load_segment(struct page *page, void *aux)
 		return false;
 
 	/* Load this page. */
-	if (file_read(la.file, kpage, page_read_bytes) != (int)page_read_bytes)
+	if (file_read(la->file, kpage, page_read_bytes) != (int)page_read_bytes)
 	{
-		palloc_free_page(kpage);
+		// palloc_free_page(kpage);
 		return false;
 	}
 	memset(kpage + page_read_bytes, 0, page_zero_bytes);
@@ -831,6 +829,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 	ASSERT(pg_ofs(upage) == 0);
 	ASSERT(ofs % PGSIZE == 0);
 
+	//
 	// core of program loader
 	while (read_bytes > 0 || zero_bytes > 0)
 	{
@@ -849,7 +848,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 
 		lazy_aux는 할당 받아야 하는가? 받는다면 언제 해제해야 하는가? - 하기 전까지
 		*/
-		struct lazy_aux *la = palloc_get_page(PAL_USER);
+		struct lazy_aux *la = malloc(sizeof(struct lazy_aux));
 		la->file = file;
 		la->ofs = ofs;
 		la->upage = upage;
@@ -857,16 +856,15 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 		la->page_zero_bytes = page_zero_bytes;
 		la->writable = writable;
 
-		void *aux = la;
 		if (!vm_alloc_page_with_initializer(VM_ANON, upage,
-											writable, lazy_load_segment, aux))
+											writable, lazy_load_segment, la))
 			return false;
 
 		/* Advance. */
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
 		upage += PGSIZE;
-		// ofs += page_read_bytes;
+		ofs += page_read_bytes;
 	}
 	return true;
 }
@@ -878,9 +876,7 @@ setup_stack(struct intr_frame *if_)
 	bool success = false;
 	void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
 
-	struct page *stack_page = palloc_get_page(PAL_USER);
 	vm_alloc_page(VM_ANON, stack_bottom, true);
-	spt_insert_page(&thread_current()->spt, stack_page);
 
 	/* TODO: Map the stack on stack_bottom and claim the page immediately.
 	 * TODO: If success, set the rsp accordingly.

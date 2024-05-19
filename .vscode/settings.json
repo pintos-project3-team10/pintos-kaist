@@ -4,6 +4,7 @@
         "vm.h": "c",
         "uninit.h": "c",
         "inspect.h": "c",
-        "thread.h": "c"
+        "thread.h": "c",
+        "process.h": "c"
     }
 }

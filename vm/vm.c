@@ -5,6 +5,7 @@
 #include "vm/inspect.h"
 #include <hash.h>
 #include "threads/vaddr.h"
+#include "threads/mmu.h"
 // #include "mmu.h" // for pml4_walk
 
 // Frame_Table을 해쉬 테이블이 아닌 연결 리스트로 선언할 예정이기 때문에 Table -> List
@@ -69,8 +70,7 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *va, bool writable,
 		*/
 
 		// 1. 구조체 할당
-		struct page *new_page = palloc_get_page(PAL_USER);
-		new_page->writable = writable;
+		struct page *new_page = malloc(sizeof(struct page));
 
 		// 2. 타입별로 init을 적절한 initializer로 fetch
 		// + uninit_new를 호출
@@ -87,6 +87,7 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *va, bool writable,
 			// default:
 		}
 
+		new_page->writable = writable;
 		// 3. spt에 추가
 		spt_insert_page(spt, new_page);
 
@@ -167,7 +168,7 @@ vm_get_frame(void)
 	struct frame *frame = NULL;
 	/* TODO: Fill this function. */
 	// user pool에서 할당받는다.
-	frame = palloc_get_page(PAL_USER);
+	frame = malloc(sizeof(struct frame));
 
 	// pool에서 할당을 받지 못하면, 지금은 일단 swap out 구현 전이기 때문에 todo로 표시
 	if (!frame)
@@ -175,7 +176,6 @@ vm_get_frame(void)
 		printf("-----------\n");
 		PANIC("todo");
 	}
-	// printf("-----------\n");
 	// frame 초기화
 	frame->kva = palloc_get_page(PAL_USER);
 	frame->page = NULL;
@@ -209,9 +209,9 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct page *page = NULL;
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
-	page = spt_find_page(spt, addr);
-
-	return vm_do_claim_page(page);
+	if (page = spt_find_page(spt, addr))
+		return vm_do_claim_page(page);
+	return false;
 }
 
 /* Free the page.
