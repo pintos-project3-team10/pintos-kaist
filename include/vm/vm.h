@@ -129,10 +129,17 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr, bool user,
 
 #define vm_alloc_page(type, upage, writable) \
 	vm_alloc_page_with_initializer((type), (upage), (writable), NULL, NULL)
+
 bool vm_alloc_page_with_initializer(enum vm_type type, void *upage,
 									bool writable, vm_initializer *init, void *aux);
 void vm_dealloc_page(struct page *page);
 bool vm_claim_page(void *va);
+static bool vm_do_claim_page(struct page *page); // 추가
 enum vm_type page_get_type(struct page *page);
+
+// 추가
+unsigned page_hash(const struct hash_elem *p_elem, void *aux UNUSED);
+bool page_less(const struct hash_elem *p_elem_a,
+			   const struct hash_elem *p_elem_b, void *aux UNUSED);
 
 #endif /* VM_VM_H */

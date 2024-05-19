@@ -1,6 +1,9 @@
 {
     "files.associations": {
         "malloc.h": "c",
-        "vm.h": "c"
+        "vm.h": "c",
+        "uninit.h": "c",
+        "inspect.h": "c",
+        "thread.h": "c"
     }
 }

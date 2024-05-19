@@ -4,7 +4,8 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 #include <hash.h>
-#include <mmu.h> // for pml4_walk
+#include "threads/vaddr.h"
+// #include "mmu.h" // for pml4_walk
 
 // Frame_Table을 해쉬 테이블이 아닌 연결 리스트로 선언할 예정이기 때문에 Table -> List
 struct list frame_list;
@@ -13,6 +14,7 @@ struct list frame_list;
  * intialize codes. */
 void vm_init(void)
 {
+	list_init(&frame_list);
 	vm_anon_init();
 	vm_file_init();
 #ifdef EFILESYS /* For project 4 */
@@ -47,22 +49,48 @@ static struct frame *vm_evict_frame(void);
 /* Create the pending page object with initializer. If you want to create a
  * page, do not create it directly and make it through this function or
  * `vm_alloc_page`. */
-bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writable,
+bool vm_alloc_page_with_initializer(enum vm_type type, void *va, bool writable,
 									vm_initializer *init, void *aux)
 {
-
 	ASSERT(VM_TYPE(type) != VM_UNINIT)
-
 	struct supplemental_page_table *spt = &thread_current()->spt;
 
 	/* Check wheter the upage is already occupied or not. */
-	if (spt_find_page(spt, upage) == NULL)
+	if (spt_find_page(spt, va) == NULL)
 	{
 		/* TODO: Create the page, fetch the initialier according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
+		/* TODO:
+			1. page 구조체를 할당
+			2. 전달된 vm_ 유형에 따라 적절한 initializer를 선택, 이를 사용해 uninit_new를 호출
+				- VM_TYPE 매크로 사용해보자
+			3. spt에 만든 page구조체 추가
+		*/
 
-		/* TODO: Insert the page into the spt. */
+		// 1. 구조체 할당
+		struct page *new_page = palloc_get_page(PAL_USER);
+		new_page->writable = writable;
+
+		// 2. 타입별로 init을 적절한 initializer로 fetch
+		// + uninit_new를 호출
+		switch (VM_TYPE(type))
+		{
+		case VM_ANON:
+			uninit_new(new_page, va, init, type, aux, anon_initializer);
+			break;
+		case VM_FILE:
+			uninit_new(new_page, va, init, type, aux, file_backed_initializer);
+			break;
+			// case VM_PAGE_CACHE:
+			// 	break;
+			// default:
+		}
+
+		// 3. spt에 추가
+		spt_insert_page(spt, new_page);
+
+		return true;
 	}
 err:
 	return false;
@@ -141,12 +169,15 @@ vm_get_frame(void)
 	// user pool에서 할당받는다.
 	frame = palloc_get_page(PAL_USER);
 
-	// 지금은 일단 swap out 구현 전이기 때문에 todo로 표시
+	// pool에서 할당을 받지 못하면, 지금은 일단 swap out 구현 전이기 때문에 todo로 표시
 	if (!frame)
+	{
+		printf("-----------\n");
 		PANIC("todo");
-
+	}
+	// printf("-----------\n");
 	// frame 초기화
-	frame->kva = ptov(frame);
+	frame->kva = palloc_get_page(PAL_USER);
 	frame->page = NULL;
 
 	// 할당한 frame 을 frame_list에 추가
@@ -178,6 +209,7 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct page *page = NULL;
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
+	page = spt_find_page(spt, addr);
 
 	return vm_do_claim_page(page);
 }
@@ -195,22 +227,19 @@ bool vm_claim_page(void *va UNUSED)
 {
 	struct page *page = NULL;
 	/* TODO: Fill this function */
-	page = palloc_get_page(PAL_USER);
-	page->va = va;
-	// 만들어진 페이지는 spt에 추가
-	hash_insert(thread_current()->spt.spt_hash_table, &(page->p_hash_elem));
-
-	return vm_do_claim_page(page);
+	page = spt_find_page(&thread_current()->spt, va);
+	if (page)
+		return vm_do_claim_page(page);
+	return false;
 }
 
 /* Claim the PAGE and set up the mmu. */
 /* 인자로 주어진 page에 물리 메모리 프레임을 할당
  */
-static bool
-vm_do_claim_page(struct page *page)
+static bool vm_do_claim_page(struct page *page)
 {
 	struct frame *frame = vm_get_frame();
-
+	struct thread *current = thread_current();
 	/* Set links */
 	frame->page = page;
 	page->frame = frame;
@@ -221,25 +250,25 @@ vm_do_claim_page(struct page *page)
 	1. pte를 찾는다.
 	2. pte의 PFN값을 vm_get_frame()함수로 할당한 frame의 kva값을 이용해서 설정한다.
 	*/
-	uint64_t *pte_found = pml4e_walk(thread_current()->pml4, page->va, 1);
-	if (pte_found && (*pte_found & PTE_P))
+
+	// set page 함수 사용 방법
+	// 설정이 실패하면 false를 반환
+	if (!pml4_set_page(current->pml4, page->va, frame->kva, page->writable))
 	{
-		pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable);
-		// & ~0xFFF 넣을지 고민
-		*pte_found = vtop(frame->kva);
-		return true;
+		palloc_free_page(frame);
+		return false;
 	}
-	return false;
+
+	// not yet 아직 구현 안함
+	return swap_in(page, frame->kva);
+
+	// walk 함수 사용 방법
+	// uint64_t *pte_found = pml4e_walk(thread_current()->pml4, page->va, 1);
+	// // & ~0xFFF 넣을지 고민
 	// if (!pte_found)
 	// 	return false;
-
-	// // & ~0xFFF 넣을지 고민
-	// *pte_found = vtop(frame->kva) & ~0xFFF;
-
-	// return true;
-	/* not yet 아직 구현 안함
-	return swap_in(page, frame->kva);
-	*/
+	// *pte_found = vtop(frame->kva) & ~0xFFF | PTE_P;
+	// return swap_in(page, frame->kva);
 }
 
 /*  spt 초기화 함수
