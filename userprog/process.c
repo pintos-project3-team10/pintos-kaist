@@ -110,8 +110,7 @@ tid_t process_fork(const char *name, struct intr_frame *if_)
 	/* Clone current thread to new thread.*/
 	struct thread *cur = thread_current();
 
-	int tid = thread_create(name,
-							PRI_DEFAULT, __do_fork, cur);
+	int tid = thread_create(name, PRI_DEFAULT, __do_fork, cur);
 
 	struct thread *child = get_child_process(tid);
 	if (child == NULL)

@@ -27,7 +27,7 @@ Page fault at 0x8004000000: rights violation error reading page in user context.
 bad-read2: exit(-1)
 Execution of 'bad-read2' complete.
 Timer: 65 ticks
-Thread: 30 idle ticks, 33 kernel ticks, 3 user ticks
+Thread: 30 idle ticks, 32 kernel ticks, 3 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 84 reads, 266 writes
 hd1:0: 119 reads, 0 writes

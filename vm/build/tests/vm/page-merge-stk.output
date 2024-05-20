@@ -11,7 +11,7 @@ Booting from Hard Disk..Kernel command line: -q -f put page-merge-stk put child-
 Pintos booting with: 
 	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
 	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
-Calibrating timer...  157,081,600 loops/s.
+Calibrating timer...  130,867,200 loops/s.
 hd0: unexpected interrupt
 hd0:0: detected 337 sector (168 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM00002"
@@ -45,8 +45,8 @@ child-qsort: exit(-1)
 (page-merge-stk) wait for child 0: FAILED
 page-merge-stk: exit(1)
 Execution of 'page-merge-stk' complete.
-Timer: 131 ticks
-Thread: 30 idle ticks, 38 kernel ticks, 63 user ticks
+Timer: 137 ticks
+Thread: 30 idle ticks, 40 kernel ticks, 67 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 395 reads, 4744 writes
 hd1:0: 257 reads, 0 writes

@@ -35,7 +35,7 @@ r15 2420000000008004 rflags 00000206
 es: 001b ds: 001b cs: 0023 ss: 001b
 Execution of 'pt-big-stk-obj' complete.
 Timer: 70 ticks
-Thread: 30 idle ticks, 34 kernel ticks, 7 user ticks
+Thread: 30 idle ticks, 32 kernel ticks, 8 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 89 reads, 288 writes
 hd1:0: 130 reads, 0 writes

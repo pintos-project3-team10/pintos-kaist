@@ -50,7 +50,6 @@ void syscall_init(void)
 
 void check_address(void *addr)
 {
-
 	if (is_kernel_vaddr(addr) || addr == NULL || !spt_find_page(&thread_current()->spt, addr))
 		exit(-1);
 }

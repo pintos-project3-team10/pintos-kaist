@@ -56,6 +56,7 @@ struct page
 	struct hash_elem p_hash_elem;
 	// vm_do_claim_page에서 writable 찾는 과정을 줄이기 위해 주가
 	int writable;
+	int dirty;
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
@@ -110,7 +111,7 @@ struct page_operations
 // va가 입력으로 들어오면, 원하는 page가 바로 딱 나오는 hash table
 struct supplemental_page_table
 {
-	struct hash *spt_hash_table;
+	struct hash spt_hash_table;
 };
 
 #include "threads/thread.h"
@@ -134,12 +135,12 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage,
 									bool writable, vm_initializer *init, void *aux);
 void vm_dealloc_page(struct page *page);
 bool vm_claim_page(void *va);
-static bool vm_do_claim_page(struct page *page); // 추가
 enum vm_type page_get_type(struct page *page);
 
 // 추가
 unsigned page_hash(const struct hash_elem *p_elem, void *aux UNUSED);
 bool page_less(const struct hash_elem *p_elem_a,
 			   const struct hash_elem *p_elem_b, void *aux UNUSED);
+void page_kill(struct hash_elem *e, void *aux);
 
 #endif /* VM_VM_H */

@@ -5,8 +5,8 @@
 #include "vm/inspect.h"
 #include <hash.h>
 #include "threads/vaddr.h"
-#include "threads/mmu.h"
-// #include "mmu.h" // for pml4_walk
+#include "threads/mmu.h" //for pml4
+#include <string.h>		 //for memcpy
 
 // Frame_Table을 해쉬 테이블이 아닌 연결 리스트로 선언할 예정이기 때문에 Table -> List
 struct list frame_list;
@@ -111,7 +111,7 @@ spt_find_page(struct supplemental_page_table *spt UNUSED, void *va UNUSED)
 	va = pg_round_down(va);
 
 	temp_page.va = va;
-	elem_found = hash_find(spt->spt_hash_table, &(temp_page.p_hash_elem));
+	elem_found = hash_find(&spt->spt_hash_table, &(temp_page.p_hash_elem));
 	return elem_found != NULL ? hash_entry(elem_found, struct page, p_hash_elem) : NULL;
 }
 
@@ -123,7 +123,7 @@ bool spt_insert_page(struct supplemental_page_table *spt UNUSED,
 {
 	struct hash_elem *result = NULL;
 	if (!spt_find_page(spt, page->va))
-		result = hash_insert(spt->spt_hash_table, &(page->p_hash_elem));
+		result = hash_insert(&spt->spt_hash_table, &(page->p_hash_elem));
 	return result != NULL ? true : false;
 }
 
@@ -277,14 +277,48 @@ static bool vm_do_claim_page(struct page *page)
 */
 void supplemental_page_table_init(struct supplemental_page_table *spt UNUSED)
 {
-	spt->spt_hash_table = palloc_get_page(PAL_USER);
-	hash_init(spt->spt_hash_table, page_hash, page_less, NULL);
+	hash_init(&spt->spt_hash_table, page_hash, page_less, NULL);
 }
 
 /* Copy supplemental page table from src to dst */
 bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 								  struct supplemental_page_table *src UNUSED)
 {
+	/*
+	TODO: src spt를 순회(해쉬 순회)하면서 모든 page들을 dst에서 새로 할당하고 claim해준다.
+	그리고 dst에 넣어준다.
+	*/
+	struct hash_iterator i;
+
+	// 순회
+	hash_first(&i, &src->spt_hash_table);
+	while (hash_next(&i))
+	{
+		// 복사할 page
+		struct page *src_page = hash_entry(hash_cur(&i), struct page, p_hash_elem);
+		if (VM_TYPE(src_page->operations->type) == VM_UNINIT)
+			;
+		else
+		{
+			// 새로운 페이지 생성, 초기화
+			if (!vm_alloc_page(page_get_type(src_page), src_page->va, src_page->writable))
+				return false;
+		}
+
+		// 생성한 페이지 찾기
+		struct page *new_page = spt_find_page(dst, src_page->va);
+		// memcpy(new_page, src_page, sizeof(struct page));
+
+		if (new_page == NULL)
+			return false;
+
+		if (src_page->frame != NULL)
+			if (!vm_claim_page(new_page->va))
+			{
+				return false;
+			}
+	}
+	return true;
 }
 
 /* Free the resource hold by the supplemental page table */
@@ -292,6 +326,29 @@ void supplemental_page_table_kill(struct supplemental_page_table *spt UNUSED)
 {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+	/*
+	spt를 순회하면서 하나씩 dirty비트를 확인한다.
+	만약 dirty하다면 디스크에 쓴다.
+	확인이 끝나면 메모리 관련된 메모리를 해제한다.
+		1. page->operations->destroy(page)호출
+			- uninit_destroy와 anon_destroy를 구현해야 한다.
+		2. page 메모리 해제
+	 */
+	hash_clear(spt, page_kill);
+}
+
+void page_kill(struct hash_elem *e, void *aux)
+{
+	// 페이지 찾음
+	struct page *src_page = hash_entry(e, struct page, p_hash_elem);
+	// dirty 확인하고 맞다면 디스크에 쓰기
+	if (src_page->dirty)
+	{
+	}
+	// destroy 호출
+	src_page->operations->destroy;
+	// page 메모리 해제
+	free(src_page);
 }
 
 /* hash table로 만들어진 spt에서 사용할 hash 함수 */

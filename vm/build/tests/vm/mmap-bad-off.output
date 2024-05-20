@@ -11,7 +11,7 @@ Booting from Hard Disk..Kernel command line: -q -f put mmap-bad-off put large.tx
 Pintos booting with: 
 	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
 	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
-Calibrating timer...  117,760,000 loops/s.
+Calibrating timer...  130,867,200 loops/s.
 hd0: unexpected interrupt
 hd0:0: detected 337 sector (168 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM00002"
@@ -27,8 +27,8 @@ Executing 'mmap-bad-off':
 (mmap-bad-off) open "large.txt"
 (mmap-bad-off) try to mmap invalid offset
 Execution of 'mmap-bad-off' complete.
-Timer: 157 ticks
-Thread: 30 idle ticks, 125 kernel ticks, 3 user ticks
+Timer: 152 ticks
+Thread: 30 idle ticks, 119 kernel ticks, 3 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 115 reads, 8104 writes
 hd1:0: 4033 reads, 0 writes
