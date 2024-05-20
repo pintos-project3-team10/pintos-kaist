@@ -602,7 +602,7 @@ load(const char *file_name, struct intr_frame *if_)
 	address_temp -= 1;		   // rsp : NULL 포인터 추가
 	memset(address_temp, 0, 8);
 	if_->rsp = address_temp; // 수정된 rsp 저장
-
+	// hex_dump(if_->R.rsi, if_->R.rsi, total_len + (count + 1) * 8, true);
 	success = true;
 done:
 	/* We arrive here whether the load is successful or not. */

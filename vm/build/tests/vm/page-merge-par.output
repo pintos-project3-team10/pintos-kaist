@@ -11,7 +11,7 @@ Booting from Hard Disk..Kernel command line: -q -f put page-merge-par put child-
 Pintos booting with: 
 	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
 	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
-Calibrating timer...  130,867,200 loops/s.
+Calibrating timer...  39,270,400 loops/s.
 hd0: unexpected interrupt
 hd0:0: detected 337 sector (168 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM00002"
@@ -27,31 +27,41 @@ Executing 'page-merge-par':
 (page-merge-par) init
 (page-merge-par) sort chunk 0
 (page-merge-par) sort chunk 1
-child-sort: exit(-1)
+child-sort: exit(123)
 (page-merge-par) sort chunk 2
-child-sort: exit(-1)
+child-sort: exit(123)
 (page-merge-par) sort chunk 3
-child-sort: exit(-1)
+child-sort: exit(123)
 (page-merge-par) sort chunk 4
-child-sort: exit(-1)
+child-sort: exit(123)
 (page-merge-par) sort chunk 5
-child-sort: exit(-1)
+child-sort: exit(123)
 (page-merge-par) sort chunk 6
-child-sort: exit(-1)
+child-sort: exit(123)
 (page-merge-par) sort chunk 7
-child-sort: exit(-1)
+child-sort: exit(123)
 (page-merge-par) wait for child 0
-child-sort: exit(-1)
-(page-merge-par) wait for child 0: FAILED
-page-merge-par: exit(1)
+(page-merge-par) wait for child 1
+(page-merge-par) wait for child 2
+(page-merge-par) wait for child 3
+(page-merge-par) wait for child 4
+child-sort: exit(123)
+(page-merge-par) wait for child 5
+(page-merge-par) wait for child 6
+(page-merge-par) wait for child 7
+(page-merge-par) merge
+(page-merge-par) verify
+(page-merge-par) success, buf_idx=1,048,576
+(page-merge-par) end
+page-merge-par: exit(0)
 Execution of 'page-merge-par' complete.
-Timer: 137 ticks
-Thread: 30 idle ticks, 41 kernel ticks, 67 user ticks
+Timer: 385 ticks
+Thread: 30 idle ticks, 58 kernel ticks, 297 user ticks
 hd0:0: 0 reads, 0 writes
-hd0:1: 395 reads, 4732 writes
+hd0:1: 4843 reads, 6780 writes
 hd1:0: 251 reads, 0 writes
 hd1:1: 0 reads, 0 writes
-Console: 1590 characters output
+Console: 1907 characters output
 Keyboard: 0 keys pressed
 Exception: 0 page faults
 Powering off...

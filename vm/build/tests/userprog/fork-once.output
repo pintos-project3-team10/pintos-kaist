@@ -23,19 +23,19 @@ Boot complete.
 Putting 'fork-once' into the file system...
 Executing 'fork-once':
 (fork-once) begin
-Page fault at 0: not present error reading page in user context.
-child: exit(-1)
-(fork-once) Parent: child exit status is -1
+(fork-once) child run
+child: exit(81)
+(fork-once) Parent: child exit status is 81
 (fork-once) end
 fork-once: exit(0)
 Execution of 'fork-once' complete.
-Timer: 68 ticks
-Thread: 30 idle ticks, 34 kernel ticks, 4 user ticks
+Timer: 73 ticks
+Thread: 30 idle ticks, 39 kernel ticks, 4 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 84 reads, 266 writes
 hd1:0: 119 reads, 0 writes
 hd1:1: 0 reads, 0 writes
-Console: 1124 characters output
+Console: 1081 characters output
 Keyboard: 0 keys pressed
-Exception: 1 page faults
+Exception: 0 page faults
 Powering off...

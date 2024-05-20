@@ -11,7 +11,7 @@ Booting from Hard Disk..Kernel command line: -q -f put mmap-off put large.txt ru
 Pintos booting with: 
 	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
 	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
-Calibrating timer...  130,867,200 loops/s.
+Calibrating timer...  52,377,600 loops/s.
 hd0: unexpected interrupt
 hd0:0: detected 337 sector (168 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM00002"
@@ -31,17 +31,17 @@ Interrupt 0x0e (#PF Page-Fault Exception) at rip=40000f
 rax 0000000000400000 rbx 2430780000008004 rcx 00000000005f0780 rdx 00000000005f0880
 rsp 000000004747ef90 rbp 000000004747ff90 rsi 00000000005f078e rdi 00000000005f087f
 rip 000000000040000f r8 0000000000000000  r9 0000000000000000 r10 0000000000000000
-r11 0000000000000206 r12 242f900000000000 r13 0000010000008004 r14 243f180000008004
-r15 20761b0000000000 rflags 00000206
+r11 0000000000000206 r12 243f180000008004 r13 20a9e80000008004 r14 242f100000000104
+r15 2420000000008004 rflags 00000206
 es: 001b ds: 001b cs: 0023 ss: 001b
 Execution of 'mmap-off' complete.
-Timer: 282 ticks
-Thread: 30 idle ticks, 244 kernel ticks, 8 user ticks
+Timer: 254 ticks
+Thread: 30 idle ticks, 215 kernel ticks, 9 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 113 reads, 15936 writes
 hd1:0: 7949 reads, 0 writes
 hd1:1: 0 reads, 0 writes
-Console: 1672 characters output
+Console: 1671 characters output
 Keyboard: 0 keys pressed
 Exception: 1 page faults
 Powering off...

@@ -266,6 +266,7 @@ static bool vm_do_claim_page(struct page *page)
 	// uint64_t *pte_found = pml4e_walk(thread_current()->pml4, page->va, 1);
 	// // & ~0xFFF 넣을지 고민
 	// if (!pte_found)
+
 	// 	return false;
 	// *pte_found = vtop(frame->kva) & ~0xFFF | PTE_P;
 	// return swap_in(page, frame->kva);
@@ -296,27 +297,30 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 	{
 		// 복사할 page
 		struct page *src_page = hash_entry(hash_cur(&i), struct page, p_hash_elem);
-		if (VM_TYPE(src_page->operations->type) == VM_UNINIT)
-			;
+
+		if (src_page->operations->type == VM_TYPE(VM_UNINIT))
+		{
+			if (!vm_alloc_page_with_initializer(page_get_type(src_page), src_page->va,
+												src_page->writable, src_page->uninit.page_initializer, src_page->uninit.aux))
+				return false;
+		}
 		else
 		{
-			// 새로운 페이지 생성, 초기화
 			if (!vm_alloc_page(page_get_type(src_page), src_page->va, src_page->writable))
 				return false;
 		}
 
-		// 생성한 페이지 찾기
-		struct page *new_page = spt_find_page(dst, src_page->va);
-		// memcpy(new_page, src_page, sizeof(struct page));
+		struct page *dst_page = spt_find_page(dst, src_page->va);
 
-		if (new_page == NULL)
+		if (dst_page == NULL)
 			return false;
 
 		if (src_page->frame != NULL)
-			if (!vm_claim_page(new_page->va))
-			{
+		{
+			if (!vm_claim_page(dst_page->va))
 				return false;
-			}
+			memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
+		}
 	}
 	return true;
 }

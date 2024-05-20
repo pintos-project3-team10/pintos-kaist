@@ -29,8 +29,8 @@ Executing 'swap-anon':
 Kernel PANIC at ../../threads/mmu.c:280 in pml4_set_page(): assertion `is_kernel_vaddr(kpage)' failed.
 Call stack: 0x8004218e4c 0x800420d663 0x8004222880 0x8004222745 0x800421e111 0x80042091d4 0x800420962c 0x400c3f 0x400c8f 0swap-anon: exit(-1)
 Execution of 'swap-anon' complete.
-Timer: 108 ticks
-Thread: 30 idle ticks, 32 kernel ticks, 46 user ticks
+Timer: 109 ticks
+Thread: 30 idle ticks, 33 kernel ticks, 46 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 84 reads, 268 writes
 hd1:0: 120 reads, 0 writes

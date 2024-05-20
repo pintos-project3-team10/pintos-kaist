@@ -11,7 +11,7 @@ Booting from Hard Disk..Kernel command line: -q -f put page-merge-stk put child-
 Pintos booting with: 
 	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
 	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
-Calibrating timer...  130,867,200 loops/s.
+Calibrating timer...  52,377,600 loops/s.
 hd0: unexpected interrupt
 hd0:0: detected 337 sector (168 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM00002"
@@ -27,31 +27,93 @@ Executing 'page-merge-stk':
 (page-merge-stk) init
 (page-merge-stk) sort chunk 0
 (page-merge-stk) sort chunk 1
-child-qsort: exit(-1)
+Page fault at 0x4747efa8: not present error reading page in user context.
+child-qsort: dying due to interrupt 0x0e (#PF Page-Fault Exception).
+Interrupt 0x0e (#PF Page-Fault Exception) at rip=400017
+ cr2=000000004747efa8 error=               4
+rax 0000000000400000 rbx 26aeb00000008004 rcx 22bc600000000047 rdx 000000004747ffd8
+rsp 000000004747efa8 rbp 000000004747ffa8 rsi 000000004747ffd8 rdi 0000000000000002
+rip 0000000000400017 r8 26a0000000008004  r9 22bc680000008004 r10 26ae500000008004
+r11 000000004745ffa8 r12 26ae500000000104 r13 26a0000000008004 r14 2420280000008004
+r15 2082b90000008004 rflags 00000202
+es: 001b ds: 001b cs: 0023 ss: 001b
 (page-merge-stk) sort chunk 2
-child-qsort: exit(-1)
+Page fault at 0x4747efa8: not present error reading page in user context.
+child-qsort: dying due to interrupt 0x0e (#PF Page-Fault Exception).
+Interrupt 0x0e (#PF Page-Fault Exception) at rip=400017
+ cr2=000000004747efa8 error=               4
+rax 0000000000400000 rbx 26beb00000008004 rcx 22bc600000000047 rdx 000000004747ffd8
+rsp 000000004747efa8 rbp 000000004747ffa8 rsi 000000004747ffd8 rdi 0000000000000002
+rip 0000000000400017 r8 26b0000000008004  r9 22bc680000008004 r10 26be500000008004
+r11 000000004745ffa8 r12 26be500000000104 r13 26b0000000008004 r14 2420280000008004
+r15 2082b90000008004 rflags 00000202
+es: 001b ds: 001b cs: 0023 ss: 001b
 (page-merge-stk) sort chunk 3
-child-qsort: exit(-1)
+Page fault at 0x4747efa8: not present error reading page in user context.
+child-qsort: dying due to interrupt 0x0e (#PF Page-Fault Exception).
+Interrupt 0x0e (#PF Page-Fault Exception) at rip=400017
+ cr2=000000004747efa8 error=               4
+rax 0000000000400000 rbx 26ceb00000008004 rcx 22bc600000000047 rdx 000000004747ffd8
+rsp 000000004747efa8 rbp 000000004747ffa8 rsi 000000004747ffd8 rdi 0000000000000002
+rip 0000000000400017 r8 26c0000000008004  r9 22bc680000008004 r10 26ce500000008004
+r11 000000004745ffa8 r12 26ce500000000104 r13 26c0000000008004 r14 2420280000008004
+r15 2082b90000008004 rflags 00000202
+es: 001b ds: 001b cs: 0023 ss: 001b
 (page-merge-stk) sort chunk 4
-child-qsort: exit(-1)
+Page fault at 0x4747efa8: not present error reading page in user context.
+child-qsort: dying due to interrupt 0x0e (#PF Page-Fault Exception).
+Interrupt 0x0e (#PF Page-Fault Exception) at rip=400017
+ cr2=000000004747efa8 error=               4
+rax 0000000000400000 rbx 26deb00000008004 rcx 22bc600000000047 rdx 000000004747ffd8
+rsp 000000004747efa8 rbp 000000004747ffa8 rsi 000000004747ffd8 rdi 0000000000000002
+rip 0000000000400017 r8 26d0000000008004  r9 22bc680000008004 r10 26de500000008004
+r11 000000004745ffa8 r12 26de500000000104 r13 26d0000000008004 r14 2420280000008004
+r15 2082b90000008004 rflags 00000202
+es: 001b ds: 001b cs: 0023 ss: 001b
 (page-merge-stk) sort chunk 5
-child-qsort: exit(-1)
+Page fault at 0x4747efa8: not present error reading page in user context.
+child-qsort: dying due to interrupt 0x0e (#PF Page-Fault Exception).
+Interrupt 0x0e (#PF Page-Fault Exception) at rip=400017
+ cr2=000000004747efa8 error=               4
+rax 0000000000400000 rbx 26eeb00000008004 rcx 22bc600000000047 rdx 000000004747ffd8
+rsp 000000004747efa8 rbp 000000004747ffa8 rsi 000000004747ffd8 rdi 0000000000000002
+rip 0000000000400017 r8 26e0000000008004  r9 22bc680000008004 r10 26ee500000008004
+r11 000000004745ffa8 r12 26ee500000000104 r13 26e0000000008004 r14 2420280000008004
+r15 2082b90000008004 rflags 00000202
+es: 001b ds: 001b cs: 0023 ss: 001b
 (page-merge-stk) sort chunk 6
-child-qsort: exit(-1)
+Page fault at 0x4747efa8: not present error reading page in user context.
+child-qsort: dying due to interrupt 0x0e (#PF Page-Fault Exception).
+Interrupt 0x0e (#PF Page-Fault Exception) at rip=400017
+ cr2=000000004747efa8 error=               4
+rax 0000000000400000 rbx 26feb00000008004 rcx 22bc600000000047 rdx 000000004747ffd8
+rsp 000000004747efa8 rbp 000000004747ffa8 rsi 000000004747ffd8 rdi 0000000000000002
+rip 0000000000400017 r8 26f0000000008004  r9 22bc680000008004 r10 26fe500000008004
+r11 000000004745ffa8 r12 26fe500000000104 r13 26f0000000008004 r14 2420280000008004
+r15 2082b90000008004 rflags 00000202
+es: 001b ds: 001b cs: 0023 ss: 001b
 (page-merge-stk) sort chunk 7
-child-qsort: exit(-1)
+Page fault at 0x4747efa8: not present error reading page in user context.
+child-qsort: dying due to interrupt 0x0e (#PF Page-Fault Exception).
+Interrupt 0x0e (#PF Page-Fault Exception) at rip=400017
+ cr2=000000004747efa8 error=               4
+rax 0000000000400000 rbx 270eb00000008004 rcx 22bc600000000047 rdx 000000004747ffd8
+rsp 000000004747efa8 rbp 000000004747ffa8 rsi 000000004747ffd8 rdi 0000000000000002
+rip 0000000000400017 r8 2700000000008004  r9 22bc680000008004 r10 270e500000008004
+r11 000000004745ffa8 r12 270e500000000104 r13 2700000000008004 r14 2420280000008004
+r15 2082b90000008004 rflags 00000202
+es: 001b ds: 001b cs: 0023 ss: 001b
 (page-merge-stk) wait for child 0
-child-qsort: exit(-1)
 (page-merge-stk) wait for child 0: FAILED
 page-merge-stk: exit(1)
 Execution of 'page-merge-stk' complete.
-Timer: 137 ticks
-Thread: 30 idle ticks, 40 kernel ticks, 67 user ticks
+Timer: 267 ticks
+Thread: 30 idle ticks, 47 kernel ticks, 190 user ticks
 hd0:0: 0 reads, 0 writes
-hd0:1: 395 reads, 4744 writes
+hd0:1: 587 reads, 4744 writes
 hd1:0: 257 reads, 0 writes
 hd1:1: 0 reads, 0 writes
-Console: 1600 characters output
+Console: 5988 characters output
 Keyboard: 0 keys pressed
-Exception: 0 page faults
+Exception: 7 page faults
 Powering off...

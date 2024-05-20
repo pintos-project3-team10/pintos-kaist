@@ -11,7 +11,7 @@ Booting from Hard Disk..Kernel command line: -q -f put mmap-twice put sample.txt
 Pintos booting with: 
 	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
 	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
-Calibrating timer...  130,867,200 loops/s.
+Calibrating timer...  104,857,600 loops/s.
 hd0: unexpected interrupt
 hd0:0: detected 337 sector (168 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM00002"
@@ -27,8 +27,8 @@ Executing 'mmap-twice':
 (mmap-twice) open "sample.txt" #0
 (mmap-twice) mmap "sample.txt" #0 at 0x10000000
 Execution of 'mmap-twice' complete.
-Timer: 66 ticks
-Thread: 30 idle ticks, 33 kernel ticks, 3 user ticks
+Timer: 85 ticks
+Thread: 30 idle ticks, 51 kernel ticks, 4 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 117 reads, 288 writes
 hd1:0: 125 reads, 0 writes
