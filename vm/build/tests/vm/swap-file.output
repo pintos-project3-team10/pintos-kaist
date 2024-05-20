@@ -11,7 +11,7 @@ Booting from Hard Disk..Kernel command line: -q -f put swap-file put large.txt r
 Pintos booting with: 
 	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
 	ext_mem: 0x100000 ~ 0x7e0000 (Usable: 7,040 kB)
-Calibrating timer...  83,456,000 loops/s.
+Calibrating timer...  130,867,200 loops/s.
 hd0: unexpected interrupt
 hd0:0: detected 337 sector (168 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM00002"
@@ -28,12 +28,12 @@ Executing 'swap-file':
 (swap-file) mmap "large.txt"
 Execution of 'swap-file' complete.
 Timer: 243 ticks
-Thread: 30 idle ticks, 209 kernel ticks, 4 user ticks
+Thread: 30 idle ticks, 210 kernel ticks, 4 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 116 reads, 15932 writes
 hd1:0: 7947 reads, 0 writes
 hd1:1: 0 reads, 0 writes
-Console: 1084 characters output
+Console: 1085 characters output
 Keyboard: 0 keys pressed
 Exception: 0 page faults
 Powering off...

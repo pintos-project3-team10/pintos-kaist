@@ -11,7 +11,7 @@ Booting from Hard Disk..Kernel command line: -q -f put rox-multichild put child-
 Pintos booting with: 
 	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
 	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
-Calibrating timer...  62,566,400 loops/s.
+Calibrating timer...  157,081,600 loops/s.
 hd0: unexpected interrupt
 hd0:0: detected 337 sector (168 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM00002"
@@ -61,8 +61,8 @@ child-rox: exit(12)
 (rox-multichild) end
 rox-multichild: exit(0)
 Execution of 'rox-multichild' complete.
-Timer: 110 ticks
-Thread: 34 idle ticks, 49 kernel ticks, 28 user ticks
+Timer: 95 ticks
+Thread: 30 idle ticks, 40 kernel ticks, 25 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 423 reads, 546 writes
 hd1:0: 253 reads, 0 writes

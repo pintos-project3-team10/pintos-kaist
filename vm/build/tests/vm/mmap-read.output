@@ -11,12 +11,12 @@ Booting from Hard Disk..Kernel command line: -q -f put mmap-read put sample.txt 
 Pintos booting with: 
 	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
 	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
-Calibrating timer...  52,377,600 loops/s.
+Calibrating timer...  130,867,200 loops/s.
 hd0: unexpected interrupt
 hd0:0: detected 337 sector (168 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM00002"
 hd1: unexpected interrupt
-hd1:0: detected 126 sector (63 kB) disk, model "QEMU HARDDISK", serial "QM00003"
+hd1:0: detected 125 sector (62 kB) disk, model "QEMU HARDDISK", serial "QM00003"
 hd1:1: detected 8,064 sector (3 MB) disk, model "QEMU HARDDISK", serial "QM00004"
 Formatting file system...done.
 Boot complete.
@@ -28,12 +28,12 @@ Executing 'mmap-read':
 (mmap-read) mmap "sample.txt"
 Execution of 'mmap-read' complete.
 Timer: 66 ticks
-Thread: 30 idle ticks, 31 kernel ticks, 6 user ticks
+Thread: 30 idle ticks, 33 kernel ticks, 3 user ticks
 hd0:0: 0 reads, 0 writes
-hd0:1: 118 reads, 290 writes
-hd1:0: 126 reads, 0 writes
+hd0:1: 117 reads, 288 writes
+hd1:0: 125 reads, 0 writes
 hd1:1: 0 reads, 0 writes
-Console: 1084 characters output
+Console: 1085 characters output
 Keyboard: 0 keys pressed
 Exception: 0 page faults
 Powering off...

@@ -51,7 +51,7 @@ pass tests/userprog/wait-twice
 pass tests/userprog/wait-killed
 pass tests/userprog/wait-bad-pid
 pass tests/userprog/multi-recurse
-FAIL tests/userprog/multi-child-fd
+pass tests/userprog/multi-child-fd
 pass tests/userprog/rox-simple
 pass tests/userprog/rox-child
 pass tests/userprog/rox-multichild
@@ -66,7 +66,7 @@ FAIL tests/vm/pt-grow-bad
 FAIL tests/vm/pt-big-stk-obj
 pass tests/vm/pt-bad-addr
 pass tests/vm/pt-bad-read
-pass tests/vm/pt-write-code
+FAIL tests/vm/pt-write-code
 FAIL tests/vm/pt-write-code2
 FAIL tests/vm/pt-grow-stk-sc
 pass tests/vm/page-linear
@@ -106,7 +106,7 @@ pass tests/vm/lazy-anon
 FAIL tests/vm/swap-file
 FAIL tests/vm/swap-anon
 FAIL tests/vm/swap-iter
-pass tests/vm/swap-fork
+FAIL tests/vm/swap-fork
 pass tests/filesys/base/lg-create
 pass tests/filesys/base/lg-full
 pass tests/filesys/base/lg-random

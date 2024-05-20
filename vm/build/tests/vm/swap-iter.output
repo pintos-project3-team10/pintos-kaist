@@ -11,7 +11,7 @@ Booting from Hard Disk..Kernel command line: -q -f put swap-iter put large.txt r
 Pintos booting with: 
 	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
 	ext_mem: 0x100000 ~ 0x9e0000 (Usable: 9,088 kB)
-Calibrating timer...  130,867,200 loops/s.
+Calibrating timer...  157,081,600 loops/s.
 hd0: unexpected interrupt
 hd0:0: detected 337 sector (168 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM00002"
@@ -30,8 +30,8 @@ Executing 'swap-iter':
 Kernel PANIC at ../../threads/mmu.c:280 in pml4_set_page(): assertion `is_kernel_vaddr(kpage)' failed.
 Call stack: 0x8004218e4c 0x800420d663 0x8004222880 0x8004222745 0x800421e111 0x80042091d4 0x800420962c 0x400dd8 0x400e28 0swap-iter: exit(-1)
 Execution of 'swap-iter' complete.
-Timer: 353 ticks
-Thread: 59 idle ticks, 224 kernel ticks, 70 user ticks
+Timer: 295 ticks
+Thread: 30 idle ticks, 213 kernel ticks, 52 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 112 reads, 15934 writes
 hd1:0: 7948 reads, 0 writes

@@ -21,7 +21,7 @@ void test_main(void)
   pid_t pid;
   if (!(pid = fork("child-close")))
   {
-    printf("\t%s----------------\n", child_cmd);
+    // printf("\t%s----------------\n", child_cmd);
     exec(child_cmd);
   }
   msg("wait(exec()) = %d", wait(pid));

@@ -177,7 +177,7 @@ vm_get_frame(void)
 		PANIC("todo");
 	}
 	// frame 초기화
-	frame->kva = palloc_get_page(PAL_USER);
+	frame->kva = palloc_get_page(PAL_USER | PAL_ZERO);
 	frame->page = NULL;
 
 	// 할당한 frame 을 frame_list에 추가
