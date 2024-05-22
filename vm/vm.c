@@ -200,6 +200,8 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
 	struct page *page = NULL;
 	/* TODO: Validate the fault */
+	if (not_present == false)
+		return false;
 
 	// kernel에서 page fault가 일어나는 경우는 syscall_handler에서 확인하기 때문에 여기서는 확인하지 않는다.
 	// 유저의 rsp

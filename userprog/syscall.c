@@ -198,6 +198,13 @@ int filesize(int fd)
 
 int read(int fd, void *buffer, unsigned size)
 {
+	// vm_try_handle_fault이외에도, 여기서 writable 처리를 하는 이유
+	// syscall에서 하는 요청은 kernel mode 즉, 절대적인 권한을 가진 모드이기 때문에
+	// writable bit와는 관계없이 -> page가 read only든 아니든 상관없이 쓰기,읽기가 가능하다.
+	// 따라서 kernel mode에서 read-only 모드로 접근해, 데이터를 작성하는 것을 막기 위해
+	// syscall.c에서 예외처리를 해야 한다.
+	if (!(spt_find_page(&thread_current()->spt, buffer)->writable))
+		exit(-1);
 
 	if (fd == 0)
 	{
