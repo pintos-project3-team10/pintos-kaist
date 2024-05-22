@@ -5,6 +5,8 @@
         "uninit.h": "c",
         "inspect.h": "c",
         "thread.h": "c",
-        "process.h": "c"
+        "process.h": "c",
+        "vaddr.h": "c",
+        "main.h": "c"
     }
 }

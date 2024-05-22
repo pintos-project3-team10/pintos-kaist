@@ -77,6 +77,7 @@ void syscall_handler(struct intr_frame *f)
 	check_address(f->rsp);
 
 	uint64_t sysnum = f->R.rax;
+	thread_current()->user_rsp = f->rsp;
 	memcpy(&thread_current()->user_tf, f, sizeof(struct intr_frame));
 
 	switch (sysnum)
@@ -198,6 +199,9 @@ int filesize(int fd)
 
 int read(int fd, void *buffer, unsigned size)
 {
+	// struct page *check_page =	spt_find_page(&thread_current()->spt, buffer);
+	if(!spt_find_page(&thread_current()->spt, buffer)->writable)
+		exit(-1);
 
 	if (fd == 0)
 	{
