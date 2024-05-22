@@ -10,6 +10,7 @@
 
 // Frame_Table을 해쉬 테이블이 아닌 연결 리스트로 선언할 예정이기 때문에 Table -> List
 struct list frame_list;
+bool check_stack_growth(void *addr, uintptr_t user_rsp);
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -196,9 +197,8 @@ vm_stack_growth(void *addr UNUSED)
 	//  거기에서부터 addr까지 내려가면서 1page씩 할당받기?
 
 	// 아니면 get_number_of_needed_page가지고 쭉 해줘야 하는데 은근 생각할 거 많음
-
 	// unint_page를 만들고
-	vm_alloc_page(VM_ANON, addr, true);
+	vm_alloc_page(VM_ANON, pg_round_down(addr), true);
 	// 프레임 할당
 	vm_claim_page(addr);
 }
@@ -213,22 +213,41 @@ vm_handle_wp(struct page *page UNUSED)
 bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 						 bool user UNUSED, bool write UNUSED, bool not_present UNUSED)
 {
+	if(not_present == false) 
+		return false;
+
 	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
 	struct page *page = NULL;
 	/* TODO: Validate the fault */
 
+	// stack growth 해야 하는 fault 인지 판단.
+	uintptr_t rsp = f->rsp;
+	if(!user) {
+		rsp = thread_current()->user_rsp;
+	}
+
+	if(check_stack_growth(addr, rsp)) {
+		// 늘려야 하는 사이즈 확인
+		if((USER_STACK - (uintptr_t) pg_round_down(addr)) > 1 << 20)
+			return false;
+
+		vm_stack_growth(addr);
+		return true;
+	}
+
 	// kernel에서 page fault가 일어나는 경우는 syscall_handler에서 확인하기 때문에 여기서는 확인하지 않는다.
 	// 유저의 rsp
-	uintptr_t user_rsp = f->rsp;
+	// uintptr_t user_rsp = f->rsp;
 
-	printf("user stack pointer : %p\n", user_rsp);
+	// printf("user stack pointer : %p\n", user_rsp);
 
-	// 입력된 addr이 스택영역이라면
-	if (is_in_stack_segment(addr, user_rsp) && user)
-	{
-		// stack growth를 수행
-		vm_stack_growth(addr);
-	}
+	// // 입력된 addr이 스택영역이라면
+	// if (is_in_stack_segment(addr, user_rsp) && user)
+	// {
+	// 	// stack growth를 수행
+	// 	vm_stack_growth(addr);
+	// }
+
 
 	/* TODO: Your code goes here */
 	if (page = spt_find_page(spt, addr))
@@ -236,19 +255,30 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	return false;
 }
 
-bool is_in_stack_segment(void *addr, uintptr_t user_rsp)
-{
-	// 영역 확인 필요
-	// +8의 이유 : rsp의 아래 8byte
-	if (addr > USER_STACK || addr < user_rsp - 8)
-		return false;
+bool check_stack_growth(void *addr, uintptr_t user_rsp)
+{	
+	if (addr == user_rsp - 8)
+		return true;
 
-	// 최대 크기 제한 1MB 확인
-	if (get_number_of_needed_page(addr) * PGSIZE > (1 << 20))
-		return false;
-
-	return true;
+	if (addr == user_rsp)
+		return true;
+	return false;
 }
+
+// bool is_in_stack_segment(void *addr, uintptr_t user_rsp)
+// {
+// 	// 영역 확인 필요
+// 	// +8의 이유 : rsp의 아래 8byte
+// 	if (addr > USER_STACK || addr < user_rsp - 8)
+// 		return false;
+
+// 	// 최대 크기 제한 1MB 확인
+// 	if (get_number_of_needed_page(addr) * PGSIZE > (1 << 20))
+// 		return false;
+
+// 	return true;
+// }
+
 
 // 필요한 페이지 사이즈 찾는 함수
 int get_number_of_needed_page(void *addr)
