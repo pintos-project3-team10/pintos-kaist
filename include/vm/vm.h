@@ -142,5 +142,5 @@ unsigned page_hash(const struct hash_elem *p_elem, void *aux UNUSED);
 bool page_less(const struct hash_elem *p_elem_a,
 			   const struct hash_elem *p_elem_b, void *aux UNUSED);
 void page_kill(struct hash_elem *e, void *aux);
-
+bool is_in_stack_segment(void *addr, uintptr_t user_rsp);
 #endif /* VM_VM_H */

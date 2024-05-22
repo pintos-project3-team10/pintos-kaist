@@ -11,7 +11,7 @@ Booting from Hard Disk..Kernel command line: -q -f put pt-grow-stack run pt-grow
 Pintos booting with: 
 	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
 	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
-Calibrating timer...  157,081,600 loops/s.
+Calibrating timer...  117,760,000 loops/s.
 hd0: unexpected interrupt
 hd0:0: detected 337 sector (168 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 20,160 sector (9 MB) disk, model "QEMU HARDDISK", serial "QM00002"
@@ -22,25 +22,32 @@ Formatting file system...done.
 Boot complete.
 Putting 'pt-grow-stack' into the file system...
 Executing 'pt-grow-stack':
+user stack pointer : 0x4747ffd8
+user stack pointer : 0x4747ffa0
+user stack pointer : 0x4747fee8
+user stack pointer : 0x4747fdc0
+user stack pointer : 0x4747fd98
+user stack pointer : 0x4747fdb8
 (pt-grow-stack) begin
+user stack pointer : 0x4747ef90
 Page fault at 0x4747ef90: not present error reading page in user context.
 pt-grow-stack: dying due to interrupt 0x0e (#PF Page-Fault Exception).
 Interrupt 0x0e (#PF Page-Fault Exception) at rip=40000f
  cr2=000000004747ef90 error=               4
-rax 0000000000400000 rbx 2430780000008004 rcx 0000000000406dc0 rdx 0000000000406ec0
+rax 0000000000400000 rbx 0000800000008004 rcx 0000000000406dc0 rdx 0000000000406ec0
 rsp 000000004747ef90 rbp 000000004747ff90 rsi 0000000000406dce rdi 0000000000406ebf
 rip 000000000040000f r8 0000000000000000  r9 0000000000000000 r10 0000000000000000
-r11 0000000000000206 r12 243f180000008004 r13 20a9e80000008004 r14 242f100000000104
-r15 2420000000008004 rflags 00000206
+r11 0000000000000206 r12 0000000000000000 r13 0000000000000000 r14 0000000000008004
+r15 20962c0000008004 rflags 00000206
 es: 001b ds: 001b cs: 0023 ss: 001b
 Execution of 'pt-grow-stack' complete.
-Timer: 69 ticks
-Thread: 30 idle ticks, 32 kernel ticks, 7 user ticks
+Timer: 74 ticks
+Thread: 30 idle ticks, 35 kernel ticks, 9 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 89 reads, 288 writes
 hd1:0: 130 reads, 0 writes
 hd1:1: 0 reads, 0 writes
-Console: 1642 characters output
+Console: 1866 characters output
 Keyboard: 0 keys pressed
 Exception: 1 page faults
 Powering off...

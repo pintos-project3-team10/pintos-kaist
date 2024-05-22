@@ -51,7 +51,10 @@ void syscall_init(void)
 void check_address(void *addr)
 {
 	if (is_kernel_vaddr(addr) || addr == NULL || !spt_find_page(&thread_current()->spt, addr))
+	{
+		// printf("accessing invalid adress\n");
 		exit(-1);
+	}
 }
 
 void check_fd(int fd, struct thread *cur_thread)
@@ -277,7 +280,6 @@ int exec(const char *cmd_line)
 	check_address(cmd_line);
 	char *filename = palloc_get_page(PAL_USER);
 	memcpy(filename, cmd_line, strlen(cmd_line) + 1);
-
 	int result = process_exec(filename);
 	if (result == -1)
 	{

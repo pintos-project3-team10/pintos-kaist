@@ -114,10 +114,10 @@ struct thread
 	struct semaphore load_sema;
 	struct semaphore wait_sema;
 	struct semaphore exit_sema;
-	int exit_status; // 종료 상태
-	bool is_exit;	 // 종료 여부
-
-	struct file *running_file;
+	int exit_status;		   // 종료 상태
+	bool is_exit;			   // 종료 여부
+	struct file *running_file; // 사용중인 file
+	uintptr_t user_rsp;		   // 유저모드에서 커널모드로 전환될 때의 rsp
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */

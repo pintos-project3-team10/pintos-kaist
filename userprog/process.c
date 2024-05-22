@@ -219,9 +219,9 @@ __do_fork(void *aux)
 	}
 	current->max_fd = parent->max_fd;
 
+	process_init();
 	if_.R.rax = 0;
 	sema_up(&current->load_sema);
-	process_init();
 
 	/* Finally, switch to the newly created process. */
 	if (succ)
@@ -248,20 +248,16 @@ int process_exec(void *f_name)
 	_if.ds = _if.es = _if.ss = SEL_UDSEG;
 	_if.cs = SEL_UCSEG;
 	_if.eflags = FLAG_IF | FLAG_MBS;
-
 	/* We first kill the current context */
 	process_cleanup();
-
 	/* And then load the binary */
 	success = load(file_name, &_if);
-
 	/* If load failed, quit. */
 	if (!success)
 	{
 		palloc_free_page(file_name);
 		return -1;
 	}
-
 	/* Start switched process. */
 	do_iret(&_if);
 	NOT_REACHED();
@@ -569,6 +565,8 @@ load(const char *file_name, struct intr_frame *if_)
 
 	// argv의 마지막을 나타내는 null 포인터
 	address_temp -= 1;
+
+	// printf("%p", *address_temp);
 	memset(address_temp, 0, 8);
 
 	// file name 이후의 arg들 stack에 넣기
@@ -790,19 +788,15 @@ lazy_load_segment(struct page *page, void *aux)
 
 	// cpu는 오직 va만 사용하고, 변환은 mmu에 전부 맡겨야 하기 때문에 vtop 매크로는 사용하지 않는다.
 	// vtop, ptov는 mmu.c 관련 코드 수정에서만 사용하면 될 것 같다.
-	uint64_t *kpage = page->frame->kva;
+	uint64_t kpage = page->frame->kva;
 	if (kpage == NULL)
 		return false;
 
 	/* Load this page. */
 	if (file_read(la->file, kpage, page_read_bytes) != (int)page_read_bytes)
-	{
-		// palloc_free_page(kpage);
 		return false;
-	}
 	memset(kpage + page_read_bytes, 0, page_zero_bytes);
 
-	// palloc_free_page(&la);
 	return true;
 }
 
@@ -882,8 +876,7 @@ setup_stack(struct intr_frame *if_)
 	 * TODO: You should mark the page is stack. */
 
 	/* TODO: Your code goes here */
-	// 스택의 첫 페이지는 lazy_load할 필요가 없다. 그냥 load tiem
-
+	// 스택의 첫 페이지는 lazy_load할 필요가 없다. 그냥 load
 	if (vm_claim_page(stack_bottom))
 	{
 		if_->rsp = USER_STACK;

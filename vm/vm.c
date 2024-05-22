@@ -167,17 +167,15 @@ vm_get_frame(void)
 {
 	struct frame *frame = NULL;
 	/* TODO: Fill this function. */
-	// user pool에서 할당받는다.
 	frame = malloc(sizeof(struct frame));
+	// frame을 user pool에서 할당받는다.
+	void *kva = palloc_get_page(PAL_USER);
 
-	// pool에서 할당을 받지 못하면, 지금은 일단 swap out 구현 전이기 때문에 todo로 표시
 	if (!frame)
-	{
-		printf("-----------\n");
 		PANIC("todo");
-	}
+
 	// frame 초기화
-	frame->kva = palloc_get_page(PAL_USER | PAL_ZERO);
+	frame->kva = kva;
 	frame->page = NULL;
 
 	// 할당한 frame 을 frame_list에 추가
@@ -193,6 +191,16 @@ vm_get_frame(void)
 static void
 vm_stack_growth(void *addr UNUSED)
 {
+
+	// 입력 들어오기 전의 stack의 마지막 값 = rbp값일 듯
+	//  거기에서부터 addr까지 내려가면서 1page씩 할당받기?
+
+	// 아니면 get_number_of_needed_page가지고 쭉 해줘야 하는데 은근 생각할 거 많음
+
+	// unint_page를 만들고
+	vm_alloc_page(VM_ANON, addr, true);
+	// 프레임 할당
+	vm_claim_page(addr);
 }
 
 /* Handle the fault on write_protected page */
@@ -208,10 +216,45 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
 	struct page *page = NULL;
 	/* TODO: Validate the fault */
+
+	// kernel에서 page fault가 일어나는 경우는 syscall_handler에서 확인하기 때문에 여기서는 확인하지 않는다.
+	// 유저의 rsp
+	uintptr_t user_rsp = f->rsp;
+
+	printf("user stack pointer : %p\n", user_rsp);
+
+	// 입력된 addr이 스택영역이라면
+	if (is_in_stack_segment(addr, user_rsp) && user)
+	{
+		// stack growth를 수행
+		vm_stack_growth(addr);
+	}
+
 	/* TODO: Your code goes here */
 	if (page = spt_find_page(spt, addr))
 		return vm_do_claim_page(page);
 	return false;
+}
+
+bool is_in_stack_segment(void *addr, uintptr_t user_rsp)
+{
+	// 영역 확인 필요
+	// +8의 이유 : rsp의 아래 8byte
+	if (addr > USER_STACK || addr < user_rsp - 8)
+		return false;
+
+	// 최대 크기 제한 1MB 확인
+	if (get_number_of_needed_page(addr) * PGSIZE > (1 << 20))
+		return false;
+
+	return true;
+}
+
+// 필요한 페이지 사이즈 찾는 함수
+int get_number_of_needed_page(void *addr)
+{
+	uint64_t page_aligned_addr = USER_STACK - (uint64_t)addr;
+	return (page_aligned_addr + PGSIZE - 1) / PGSIZE;
 }
 
 /* Free the page.
@@ -308,17 +351,11 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 		{
 			if (!vm_alloc_page(page_get_type(src_page), src_page->va, src_page->writable))
 				return false;
-		}
 
-		struct page *dst_page = spt_find_page(dst, src_page->va);
-
-		if (dst_page == NULL)
-			return false;
-
-		if (src_page->frame != NULL)
-		{
+			struct page *dst_page = spt_find_page(dst, src_page->va);
 			if (!vm_claim_page(dst_page->va))
 				return false;
+
 			memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
 		}
 	}
