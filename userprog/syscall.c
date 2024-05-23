@@ -11,8 +11,10 @@
 #include "include/threads/synch.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "vm/file.h"
 #include "include/userprog/process.h"
 #include "threads/palloc.h"
+#include "userprog/syscall.h"
 #include <stdlib.h>
 
 void syscall_entry(void);
@@ -124,6 +126,9 @@ void syscall_handler(struct intr_frame *f)
 		break;
 	case SYS_WAIT:
 		f->R.rax = wait(f->R.rdi);
+		break;
+	case SYS_MMAP:
+		f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
 		break;
 	default:
 		thread_exit();
@@ -290,4 +295,45 @@ int exec(const char *cmd_line)
 		exit(-1);
 	}
 	return result;
+}
+
+void *mmap (void *addr, size_t length, int writable, int fd, int32_t offset)
+{
+	// check_address(addr);
+	// check_fd(fd, thread_current());
+	struct file* file = thread_current()->fd_table[fd];
+	// printf("fd %d\n", fd);
+
+	if (fd == 0 || fd == 1)
+		return NULL;
+
+	if (is_kernel_vaddr(addr) || addr == NULL || spt_find_page(&thread_current()->spt, addr)) 
+		return NULL;
+
+	if (is_kernel_vaddr(addr+length)) 
+		return NULL;
+
+	// fd로 열린 파일의 길이가 0바이트인 경우
+	if(filesize(fd) == 0)
+		return NULL;
+
+	// addr이 align 되지 않은 경우
+	if(pg_round_down(addr) != addr)
+		return NULL;
+
+	if(length == 0)
+		return NULL;
+
+	if(offset > length)
+		return NULL;
+
+	// if(offset % PGSIZE == 0)
+	// 	return NULL;
+
+	// ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
+	// ASSERT(pg_ofs(upage) == 0);
+	// ASSERT(ofs % PGSIZE == 0);
+
+
+	return do_mmap(addr, length, writable, file, offset);
 }

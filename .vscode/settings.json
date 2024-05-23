@@ -7,6 +7,10 @@
         "thread.h": "c",
         "process.h": "c",
         "vaddr.h": "c",
-        "main.h": "c"
+        "main.h": "c",
+        "file.h": "c",
+        "filesys.h": "c",
+        "syscall.h": "c",
+        "palloc.h": "c"
     }
 }

@@ -23,5 +23,6 @@ void close(int);
 int fork(const char*);
 int exec(const char*);
 int wait(int );
+void *mmap (void *, size_t, int, int, int32_t);
 
 #endif /* userprog/syscall.h */
