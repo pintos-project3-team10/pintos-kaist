@@ -5,6 +5,9 @@
         "uninit.h": "c",
         "inspect.h": "c",
         "thread.h": "c",
-        "process.h": "c"
+        "process.h": "c",
+        "synch.h": "c",
+        "syscall.h": "c",
+        "stdio.h": "c"
     }
 }

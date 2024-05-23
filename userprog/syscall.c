@@ -106,7 +106,6 @@ void syscall_handler(struct intr_frame *f)
 		f->R.rax = read(f->R.rdi, f->R.rsi, f->R.rdx);
 		break;
 	case SYS_WRITE:
-		// printf("%s", f->R.rsi);
 		f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
 		break;
 	case SYS_SEEK:
@@ -124,6 +123,8 @@ void syscall_handler(struct intr_frame *f)
 	case SYS_WAIT:
 		f->R.rax = wait(f->R.rdi);
 		break;
+	case SYS_MMAP:
+		f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
 	default:
 		thread_exit();
 	}
@@ -238,7 +239,8 @@ int read(int fd, void *buffer, unsigned size)
 
 int write(int fd, const void *buffer, unsigned size)
 {
-
+	if (!(spt_find_page(&thread_current()->spt, buffer)->writable))
+		exit(-1);
 	if (fd == 1)
 	{
 		putbuf(buffer, size);
@@ -293,4 +295,16 @@ int exec(const char *cmd_line)
 		exit(-1);
 	}
 	return result;
+}
+
+// project 3
+void *mmap(void *addr, size_t length, int writable, int fd, off_t offset)
+{
+	struct thread *cur_thread = thread_current();
+	check_address(addr);
+	check_fd(fd, cur_thread);
+	// fd 예외처리
+	if (fd == 0 || fd == 1 || fd == 2)
+		return NULL;
+	return do_mmap(addr, length, writable, cur_thread->fd_table[fd], offset);
 }
