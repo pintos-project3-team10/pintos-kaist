@@ -384,12 +384,27 @@ void page_kill(struct hash_elem *e, void *aux)
 {
 	// 페이지 찾음
 	struct page *src_page = hash_entry(e, struct page, p_hash_elem);
-	// dirty 확인하고 맞다면 디스크에 쓰기
-	if (src_page->dirty)
+	// 없다면 종료
+	if (!src_page)
+		return;
+	// 쓰고 난 후에 frame이 존재하면 해제
+	if (src_page->frame)
 	{
+		// 1. 실제 frame 해제
+		palloc_free_page(src_page->frame->kva);
+		// 2. frame_list에서 삭제
+		struct frame *out_frame = src_page->frame;
+		list_remove(&out_frame->f_elem);
+		// 3. frame 구조체 해제
+		free(src_page->frame);
 	}
+
 	// destroy 호출
 	src_page->operations->destroy;
+
+	// pml4 갱신
+	pml4_clear_page(thread_current()->pml4, src_page->va);
+
 	// page 메모리 해제
 	free(src_page);
 }

@@ -52,6 +52,7 @@ uninit_initialize(struct page *page, void *kva)
 	void *aux = uninit->aux;
 
 	/* TODO: You may need to fix this function. */
+	// uninit의 타입에 맞는 페이지 초기화함수를 실행 + init이 있으면 실행
 	return uninit->page_initializer(page, uninit->type, kva) &&
 		   (init ? init(page, aux) : true);
 }

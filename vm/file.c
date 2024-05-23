@@ -2,10 +2,19 @@
 
 #include "vm/vm.h"
 #include "threads/vaddr.h"
-
 static bool file_backed_swap_in(struct page *page, void *kva);
 static bool file_backed_swap_out(struct page *page);
 static void file_backed_destroy(struct page *page);
+
+struct lazy_aux
+{
+	struct file *file;
+	off_t ofs;
+	uint8_t *upage;
+	uint32_t page_read_bytes;
+	uint32_t page_zero_bytes;
+	bool writable;
+};
 
 /* DO NOT MODIFY this struct */
 static const struct page_operations file_ops = {
@@ -25,8 +34,24 @@ bool file_backed_initializer(struct page *page, enum vm_type type, void *kva)
 {
 	/* Set up the handler */
 	page->operations = &file_ops;
-
 	struct file_page *file_page = &page->file;
+
+	struct lazy_aux *la = file_page->la;
+	file_seek(la->file, la->ofs);
+
+	size_t page_read_bytes = la->page_read_bytes;
+	size_t page_zero_bytes = la->page_zero_bytes;
+
+	uint64_t kpage = kva;
+	if (kpage == NULL)
+		return false;
+
+	/* Load this page. */
+	if (file_read(la->file, kpage, page_read_bytes) != (int)page_read_bytes)
+		return false;
+	memset(kpage + page_read_bytes, 0, page_zero_bytes);
+
+	return true;
 }
 
 /* Swap in the page by read contents from the file. */
@@ -48,23 +73,61 @@ static void
 file_backed_destroy(struct page *page)
 {
 	struct file_page *file_page UNUSED = &page->file;
+	free(file_page->la);
+	// TODO: dirty 확인하고 맞다면 디스크에 쓰기
+	if (page->dirty)
+	{
+	}
 }
 
 /* Do the mmap */
 void *
-do_mmap(void *addr, size_t length, int writable,
-		struct file *file, off_t offset)
+do_mmap(void *addr, size_t length, int writable, struct file *file, off_t offset)
 {
-	// length 길이 예외처리
-	if (length == 0)
-		return NULL;
-	// addr의 page aligned 예외처리
-	if (addr != pg_round_down(addr))
-		return;
-	// addr null 예외처리
-	if (addr == NULL)
-		return NULL;
-	// addr이 스택이나 다른 매핑된 페이지 세트를 침범 예외처리
+
+	// 읽어야 하는 바이트
+	size_t read_bytes;
+	// TODO : length 가 filesize보다 크면 읽을 수 있을만큼만 읽는다.
+	if (file_length(file) < length)
+		read_bytes = file_length(file);
+	else
+		read_bytes = length;
+
+	// 0 처리해야하는 바이트
+	size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
+
+	ASSERT(offset % PGSIZE == 0); // 모름
+
+	// 읽을 바이트들이 다 떨어질 때까지 반복
+	while (read_bytes > 0 || zero_bytes > 0)
+	{
+
+		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+		size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+		struct lazy_aux *la = malloc(sizeof(struct lazy_aux));
+		la->file = file;
+		la->ofs = offset;
+		la->upage = addr;
+		la->page_read_bytes = page_read_bytes;
+		la->page_zero_bytes = page_zero_bytes;
+		la->writable = writable;
+
+		// page 구조체 생성
+		if (!vm_alloc_page(VM_FILE, addr, writable))
+			return NULL;
+
+		// page의 file_page 구조체에 정보 저장
+		struct page *p = spt_find_page(&thread_current()->spt, addr);
+		p->file.la = la;
+
+		/* Advance. */
+		read_bytes -= page_read_bytes;
+		zero_bytes -= page_zero_bytes;
+		addr += PGSIZE;
+		offset += page_read_bytes;
+	}
+	return addr;
 }
 
 /* Do the munmap */

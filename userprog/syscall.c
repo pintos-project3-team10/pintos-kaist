@@ -56,6 +56,16 @@ void check_address(void *addr)
 		exit(-1);
 	}
 }
+bool check_mapping_address(void *addr)
+{
+	// 커널 영역 주소, NULL, 할당받은 페이지인 경우 유효하지 않은 주소
+	if (is_kernel_vaddr(addr) || addr == NULL || spt_find_page(&thread_current()->spt, addr))
+		return false;
+	// 스택 영역 내의 주소 또한 유효하지 않은 주소
+	if (addr <= USER_STACK || addr >= thread_current()->user_rsp - 8)
+		return false;
+	return true;
+}
 
 void check_fd(int fd, struct thread *cur_thread)
 {
@@ -125,6 +135,7 @@ void syscall_handler(struct intr_frame *f)
 		break;
 	case SYS_MMAP:
 		f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
+		break;
 	default:
 		thread_exit();
 	}
@@ -301,10 +312,36 @@ int exec(const char *cmd_line)
 void *mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 {
 	struct thread *cur_thread = thread_current();
-	check_address(addr);
+	struct file *file = cur_thread->fd_table[fd];
+
 	check_fd(fd, cur_thread);
-	// fd 예외처리
+	// file 관련 예외처리 ---------------------
+	//  fd 예외처리
 	if (fd == 0 || fd == 1 || fd == 2)
 		return NULL;
-	return do_mmap(addr, length, writable, cur_thread->fd_table[fd], offset);
+	// 파일이 닫혔다면 다시 열기
+	if (!file_reopen(file))
+		return NULL;
+	// file 사이즈 예외처리
+	if (filesize(fd) <= 0)
+		return NULL;
+	// file 사이즈 + offset 예외처리
+	if (filesize(fd) <= offset)
+		return NULL;
+	// addr 관련 예외처리 ---------------------
+	// addr의 page aligned 예외처리
+	if (pg_ofs(addr) == 0)
+		return NULL;
+	// mapping하는 시작,마지막 위치 예외처리
+	if (!check_mapping_address(addr))
+		return NULL;
+	if (!check_mapping_address(addr + length))
+		return NULL;
+	// length 길이 예외처리--------------------
+	if (length <= 0)
+		return NULL;
+
+	// Todo : addr이 스택이나 다른 매핑된 페이지 세트를 침범 예외처리
+
+	return do_mmap(addr, length, writable, file, offset);
 }
