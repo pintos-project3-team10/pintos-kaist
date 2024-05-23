@@ -281,11 +281,11 @@ bool check_stack_growth(void *addr, uintptr_t user_rsp)
 
 
 // 필요한 페이지 사이즈 찾는 함수
-int get_number_of_needed_page(void *addr)
-{
-	uint64_t page_aligned_addr = USER_STACK - (uint64_t)addr;
-	return (page_aligned_addr + PGSIZE - 1) / PGSIZE;
-}
+// int get_number_of_needed_page(void *addr)
+// {
+// 	uint64_t page_aligned_addr = USER_STACK - (uint64_t)addr;
+// 	return (page_aligned_addr + PGSIZE - 1) / PGSIZE;
+// }
 
 /* Free the page.
  * DO NOT MODIFY THIS FUNCTION. */
@@ -374,7 +374,7 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 		if (src_page->operations->type == VM_TYPE(VM_UNINIT))
 		{
 			if (!vm_alloc_page_with_initializer(page_get_type(src_page), src_page->va,
-												src_page->writable, src_page->uninit.page_initializer, src_page->uninit.aux))
+												src_page->writable, src_page->uninit.init, src_page->uninit.aux))
 				return false;
 		}
 		else
@@ -412,10 +412,16 @@ void page_kill(struct hash_elem *e, void *aux)
 {
 	// 페이지 찾음
 	struct page *src_page = hash_entry(e, struct page, p_hash_elem);
+	if (!src_page)
+		return;
+
 	// dirty 확인하고 맞다면 디스크에 쓰기
 	if (src_page->dirty)
 	{
 	}
+	// if (src_page->frame != NULL && src_page->frame->kva != NULL)
+	// 	palloc_free_page(src_page->frame->kva);
+
 	// destroy 호출
 	src_page->operations->destroy;
 	// page 메모리 해제
