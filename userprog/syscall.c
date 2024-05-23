@@ -315,7 +315,7 @@ void *mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 	struct file *file = cur_thread->fd_table[fd];
 
 	check_fd(fd, cur_thread);
-	// file 관련 예외처리 ---------------------
+	// file 관련 예외처리 ---- -----------------
 	// fd 예외처리
 	if (fd == 0 || fd == 1)
 		return NULL;
@@ -325,14 +325,14 @@ void *mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 	// file 사이즈 예외처리
 	if (filesize(fd) <= 0)
 		return NULL;
-	// offset 관련 예외처리--------------------
+	// offset 관련 예외처리-------------------
 	// length + offset 예외처리
 	if (offset > length)
 		return NULL;
 	// file 사이즈 + offset 예외처리
 	if (filesize(fd) <= offset)
 		return NULL;
-	// addr 관련 예외처리 ---------------------
+	// addr 관련 예외처리 --------------------
 	// addr의 page aligned 예외처리
 	if (pg_round_down(addr) != addr)
 		return NULL;
@@ -342,6 +342,7 @@ void *mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 	if (!check_mapping_address(addr + length))
 		return NULL;
 	// length 길이 예외처리--------------------
+	// length는 size_t -> 음수 못받음 -> 처리해야 함
 	if (length <= 0)
 		return NULL;
 

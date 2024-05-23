@@ -769,8 +769,7 @@ install_page(void *upage, void *kpage, bool writable)
 aux를 segment를 읽을 file을 찾고, 세그먼트를 page와 연결된 frame 위치의 메모리로 load해야 한다.
 일단 들어온 page는 page fault가 난 page, aux는 그 페이지의 uninit에 들어있는 aux
 */
-static bool
-lazy_load_segment(struct page *page, void *aux)
+bool lazy_load_segment(struct page *page, void *aux)
 {
 	struct lazy_aux *la = aux;
 	file_seek(la->file, la->ofs);

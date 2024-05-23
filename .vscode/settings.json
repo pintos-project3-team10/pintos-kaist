@@ -10,6 +10,7 @@
         "syscall.h": "c",
         "stdio.h": "c",
         "vaddr.h": "c",
-        "mmu.h": "c"
+        "mmu.h": "c",
+        "*.inc": "c"
     }
 }

@@ -36,20 +36,20 @@ bool file_backed_initializer(struct page *page, enum vm_type type, void *kva)
 	page->operations = &file_ops;
 	struct file_page *file_page = &page->file;
 
-	struct lazy_aux *la = file_page->la;
-	file_seek(la->file, la->ofs);
+	// struct lazy_aux *la = file_page->la;
+	// file_seek(la->file, la->ofs);
 
-	size_t page_read_bytes = la->page_read_bytes;
-	size_t page_zero_bytes = la->page_zero_bytes;
+	// size_t page_read_bytes = la->page_read_bytes;
+	// size_t page_zero_bytes = la->page_zero_bytes;
 
-	uint64_t kpage = kva;
-	if (kpage == NULL)
-		return false;
+	// uint64_t kpage = kva;
+	// if (kpage == NULL)
+	// 	return false;
 
-	/* Load this page. */
-	if (file_read(la->file, kpage, page_read_bytes) != (int)page_read_bytes)
-		return false;
-	memset(kpage + page_read_bytes, 0, page_zero_bytes);
+	// /* Load this page. */
+	// if (file_read(la->file, kpage, page_read_bytes) != (int)page_read_bytes)
+	// 	return false;
+	// memset(kpage + page_read_bytes, 0, page_zero_bytes);
 
 	return true;
 }
@@ -73,7 +73,7 @@ static void
 file_backed_destroy(struct page *page)
 {
 	struct file_page *file_page UNUSED = &page->file;
-	free(file_page->la);
+	// free(file_page->la);
 	// TODO: dirty 확인하고 맞다면 디스크에 쓰기
 	if (page->dirty)
 	{
@@ -84,7 +84,7 @@ file_backed_destroy(struct page *page)
 void *
 do_mmap(void *addr, size_t length, int writable, struct file *file, off_t offset)
 {
-
+	void *temp = addr;
 	// 읽어야 하는 바이트
 	size_t read_bytes;
 	if (file_length(file) < length)
@@ -107,23 +107,27 @@ do_mmap(void *addr, size_t length, int writable, struct file *file, off_t offset
 		struct lazy_aux *la = malloc(sizeof(struct lazy_aux));
 		la->file = file;
 		la->ofs = offset;
-		la->upage = addr;
+		la->upage = temp;
 		la->page_read_bytes = page_read_bytes;
 		la->page_zero_bytes = page_zero_bytes;
 		la->writable = writable;
-
-		// page 구조체 생성
-		if (!vm_alloc_page(VM_FILE, addr, writable))
+		bool lazy_load_segment(struct page * page, void *aux);
+		// 이거 메모리 해제 언제 하지..?
+		if (!vm_alloc_page_with_initializer(VM_FILE, temp, writable, lazy_load_segment, la))
 			return NULL;
 
+		// // page 구조체 생성
+		// if (!vm_alloc_page(VM_FILE, temp, writable))
+		// 	return NULL;
+
 		// page의 file_page 구조체에 정보 저장
-		struct page *p = spt_find_page(&thread_current()->spt, addr);
-		p->file.la = la;
+		// struct page *p = spt_find_page(&thread_current()->spt, temp);
+		// p->file.la = la;
 
 		/* Advance. */
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
-		addr += PGSIZE;
+		temp += PGSIZE;
 		offset += page_read_bytes;
 	}
 	return addr;

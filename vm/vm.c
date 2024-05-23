@@ -82,9 +82,6 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *va, bool writable,
 		case VM_FILE:
 			uninit_new(new_page, va, init, type, aux, file_backed_initializer);
 			break;
-			// case VM_PAGE_CACHE:
-			// 	break;
-			// default:
 		}
 
 		new_page->writable = writable;
@@ -346,7 +343,7 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 		if (src_page->operations->type == VM_TYPE(VM_UNINIT))
 		{
 			if (!vm_alloc_page_with_initializer(page_get_type(src_page), src_page->va,
-												src_page->writable, src_page->uninit.page_initializer, src_page->uninit.aux))
+												src_page->writable, src_page->uninit.init, src_page->uninit.aux))
 				return false;
 		}
 		else
