@@ -62,7 +62,7 @@ bool check_mapping_address(void *addr)
 	if (is_kernel_vaddr(addr) || addr == NULL || spt_find_page(&thread_current()->spt, addr))
 		return false;
 	// 스택 영역 내의 주소 또한 유효하지 않은 주소
-	if (addr <= USER_STACK || addr >= thread_current()->user_rsp - 8)
+	if (addr <= USER_STACK && addr >= thread_current()->user_rsp - 8)
 		return false;
 	return true;
 }
@@ -316,8 +316,8 @@ void *mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 
 	check_fd(fd, cur_thread);
 	// file 관련 예외처리 ---------------------
-	//  fd 예외처리
-	if (fd == 0 || fd == 1 || fd == 2)
+	// fd 예외처리
+	if (fd == 0 || fd == 1)
 		return NULL;
 	// 파일이 닫혔다면 다시 열기
 	if (!file_reopen(file))
@@ -325,12 +325,16 @@ void *mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 	// file 사이즈 예외처리
 	if (filesize(fd) <= 0)
 		return NULL;
+	// offset 관련 예외처리--------------------
+	// length + offset 예외처리
+	if (offset > length)
+		return NULL;
 	// file 사이즈 + offset 예외처리
 	if (filesize(fd) <= offset)
 		return NULL;
 	// addr 관련 예외처리 ---------------------
 	// addr의 page aligned 예외처리
-	if (pg_ofs(addr) == 0)
+	if (pg_round_down(addr) != addr)
 		return NULL;
 	// mapping하는 시작,마지막 위치 예외처리
 	if (!check_mapping_address(addr))

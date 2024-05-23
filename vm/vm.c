@@ -390,7 +390,8 @@ void page_kill(struct hash_elem *e, void *aux)
 	// 쓰고 난 후에 frame이 존재하면 해제
 	if (src_page->frame)
 	{
-		// 1. 실제 frame 해제
+
+		// 1. 실제 frame 해 제
 		palloc_free_page(src_page->frame->kva);
 		// 2. frame_list에서 삭제
 		struct frame *out_frame = src_page->frame;

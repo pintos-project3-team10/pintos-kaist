@@ -87,7 +87,6 @@ do_mmap(void *addr, size_t length, int writable, struct file *file, off_t offset
 
 	// 읽어야 하는 바이트
 	size_t read_bytes;
-	// TODO : length 가 filesize보다 크면 읽을 수 있을만큼만 읽는다.
 	if (file_length(file) < length)
 		read_bytes = file_length(file);
 	else
