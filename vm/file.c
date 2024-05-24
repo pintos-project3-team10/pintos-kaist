@@ -4,6 +4,8 @@
 #include "threads/vaddr.h"
 #include "userprog/process.h"
 #include "threads/mmu.h"
+#include "threads/malloc.h"
+#include "lib/string.h"
 static bool file_backed_swap_in(struct page *page, void *kva);
 static bool file_backed_swap_out(struct page *page);
 static void file_backed_destroy(struct page *page);
@@ -34,32 +36,18 @@ void vm_file_init(void)
 /* Initialize the file backed page */
 bool file_backed_initializer(struct page *page, enum vm_type type, void *kva)
 {
-	// if (!file_reopen(page->file.la->file))
-	// 	return false;
-
 	/* Set up the handler */
 	page->operations = &file_ops;
 	struct file_page *file_page = &page->file;
-
-	struct lazy_aux *la = file_page->la;
-	file_seek(la->file, la->ofs);
-
-	size_t page_read_bytes = la->page_read_bytes;
-	size_t page_zero_bytes = la->page_zero_bytes;
-
-	uint64_t kpage = kva;
-	if (kpage == NULL)
-		return false;
-
-	/* Load this page. */
-	if (file_read(la->file, kpage, page_read_bytes) != (int)page_read_bytes)
-		return false;
-	memset(kpage + page_read_bytes, 0, page_zero_bytes);
+	struct lazy_aux aux = *(struct lazy_aux *)page->uninit.aux;
+	free(page->uninit.aux);
+	file_page->aux = malloc(sizeof(struct lazy_aux));
+	memcpy(file_page->aux, &aux, sizeof(struct lazy_aux));
 
 	return true;
 }
 
-/* Swap in the page by read contents from the file. */
+/* Swap in the page by read contents from  the file. */
 static bool
 file_backed_swap_in(struct page *page, void *kva)
 {
@@ -106,17 +94,17 @@ do_mmap(void *addr, size_t length, int writable, struct file *file, off_t offset
 		la->page_zero_bytes = page_zero_bytes;
 		la->writable = writable;
 
-		// // 이거 메모리 해제 언제 하지..?
-		// if (!vm_alloc_page_with_initializer(VM_FILE, temp, writable, lazy_load_segment, la))
-		// 	return NULL;
-
-		// page 구조체 생성
-		if (!vm_alloc_page(VM_FILE, temp, writable))
+		// 이거 메모리 해제 언제 하지..?
+		if (!vm_alloc_page_with_initializer(VM_FILE, temp, writable, lazy_load_segment, la))
 			return NULL;
 
-		// page의 file_page 구조체에 정보 저장
-		struct page *p = spt_find_page(&thread_current()->spt, temp);
-		p->file.la = la;
+		// // page 구조체  생성
+		// if (!vm_alloc_page(VM_FILE, temp, writable))
+		// 	return NULL;
+
+		// // page의 file_page 구조체에 정보 저장
+		// struct page *p = spt_find_page(&thread_current()->spt, temp);
+		// p->file.la = la;
 
 		/* Advance. */
 		read_bytes -= page_read_bytes;
@@ -136,13 +124,11 @@ static void
 file_backed_destroy(struct page *page)
 {
 	struct file_page *file_page UNUSED = &page->file;
+	struct lazy_aux aux = *file_page->aux;
 	// TODO: dirty 확인하고 맞다면 디스크에 쓰기
 	if (pml4_is_dirty(thread_current()->pml4, page))
 	{
-		if (!file_reopen(file_page->la->file))
-			return;
-
-		file_write_at(file_page->la->file, page->va, file_page->la->page_read_bytes, file_page->la->ofs);
+		file_write_at(file_page->aux->file, page->va, file_page->aux->page_read_bytes, file_page->aux->ofs);
 	}
-	free(file_page->la);
+	free(file_page->aux);
 }

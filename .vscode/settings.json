@@ -11,6 +11,7 @@
         "stdio.h": "c",
         "vaddr.h": "c",
         "mmu.h": "c",
-        "*.inc": "c"
+        "*.inc": "c",
+        "string.h": "c"
     }
 }

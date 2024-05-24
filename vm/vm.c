@@ -354,23 +354,21 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 			if (!vm_alloc_page_with_initializer(page_get_type(src_page), src_page->va,
 												src_page->writable, src_page->uninit.init, src_page->uninit.aux))
 				return false;
-			// 초기화 전 file page
-			if (src_page->uninit.init == VM_TYPE(VM_FILE))
-			{
-				struct page *dst_page = spt_find_page(dst, src_page->va);
-				dst_page->file.la = malloc(sizeof(struct lazy_aux));
-				memcpy(dst_page->file.la, src_page->file.la, sizeof(struct lazy_aux));
-			}
+			// // 초기화 전 file page
+			// if (src_page->uninit.init == VM_TYPE(VM_FILE))
+			// {
+			// 	struct page *dst_page = spt_find_page(dst, src_page->va);
+			// 	dst_page->file.aux = malloc(sizeof(struct lazy_aux));
+			// 	memcpy(dst_page->file.aux, src_page->file.aux, sizeof(struct lazy_aux));
+			// }
 		}
 		// 초기화 후 file
 		else if (src_page->operations->type == VM_TYPE(VM_FILE))
 		{
-			if (!vm_alloc_page(page_get_type(src_page), src_page->va, src_page->writable))
+			if (!vm_alloc_page_with_initializer(page_get_type(src_page), src_page->va,
+												src_page->writable, src_page->uninit.init, src_page->uninit.aux))
 				return false;
-
 			struct page *dst_page = spt_find_page(dst, src_page->va);
-			dst_page->file.la = malloc(sizeof(struct lazy_aux));
-			memcpy(dst_page->file.la, src_page->file.la, sizeof(struct lazy_aux));
 			if (!vm_claim_page(dst_page->va))
 				return false;
 		}
@@ -413,25 +411,18 @@ void page_kill(struct hash_elem *e, void *aux)
 	// 없다면 종료
 	if (!src_page)
 		return;
-	// 쓰고 난 후에 frame이 존재하면 해제
+	// frame이 존재시
 	if (src_page->frame)
 	{
-		// 1. 실제 frame 해제 -> process clear의 pml4_destroy에서 다 하기 때문에 생략
-		// palloc_free_page(src_page->frame->kva);
-
-		// 2. frame_list에서 삭제
+		// 1. frame_list에서 삭제
 		struct frame *out_frame = src_page->frame;
 		list_remove(&out_frame->f_elem);
-		// 3. frame 구조체 해제
+		// 2. frame 구조체 해제
 		free(src_page->frame);
 	}
-	// printf("---------\n");
 
 	// destroy 호출
-	// destroy(src_page);
-
-	// copy on write : pml4 비우기 -> 원본 kva의 생존을 위해
-	// pml4_clear_page(thread_current()->pml4, src_page->va);
+	destroy(src_page);
 
 	// page 메모리 해제
 	free(src_page);
