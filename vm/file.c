@@ -91,6 +91,13 @@ do_mmap(void *addr, size_t length, int writable, struct file *file, off_t offset
 
 	ASSERT(offset % PGSIZE == 0); // 모름
 
+	int total_page_cnt;
+	if (read_bytes % PGSIZE == 0) {
+		total_page_cnt = read_bytes / PGSIZE;
+	}else {
+		total_page_cnt = read_bytes / PGSIZE + 1;
+	}
+
 	// 읽을 바이트들이 다 떨어질 때까지 반복
 	while (read_bytes > 0 || zero_bytes > 0)
 	{
@@ -117,6 +124,8 @@ do_mmap(void *addr, size_t length, int writable, struct file *file, off_t offset
 		// page의 file_page 구조체에 정보 저장
 		struct page *p = spt_find_page(&thread_current()->spt, temp);
 		p->file.la = la;
+		p->page_cnt = total_page_cnt;
+		total_page_cnt--;
 
 		/* Advance. */
 		read_bytes -= page_read_bytes;
@@ -130,19 +139,32 @@ do_mmap(void *addr, size_t length, int writable, struct file *file, off_t offset
 /* Do the munmap */
 void do_munmap(void *addr)
 {
+	struct page *p = spt_find_page(&thread_current()->spt, addr);
+	int cnt = p->page_cnt;
+	for(int i=0;i<cnt;i++) {
+		destroy(p);
+		addr = addr + PGSIZE;
+		p = spt_find_page(&thread_current()->spt, addr);
+	}
+	// while(p && p->page_cnt > 0) {
+	// }
+
 }
+
+
 /* Destory the file backed page. PAGE will be freed by the caller. */
 static void
 file_backed_destroy(struct page *page)
 {
 	struct file_page *file_page UNUSED = &page->file;
 	// TODO: dirty 확인하고 맞다면 디스크에 쓰기
-	if (pml4_is_dirty(thread_current()->pml4, page))
+	if (pml4_is_dirty(thread_current()->pml4, page->va))
 	{
-		if (!file_reopen(file_page->la->file))
-			return;
+		// if (!file_reopen(file_page->la->file))
+		// 	return;
 
 		file_write_at(file_page->la->file, page->va, file_page->la->page_read_bytes, file_page->la->ofs);
+		pml4_set_dirty(thread_current()->pml4, page->va, 0);
 	}
-	free(file_page->la);
+	// free(file_page->la);
 }

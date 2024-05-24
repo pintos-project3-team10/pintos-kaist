@@ -428,7 +428,7 @@ void page_kill(struct hash_elem *e, void *aux)
 	// printf("---------\n");
 
 	// destroy 호출
-	// destroy(src_page);
+	destroy(src_page);
 
 	// copy on write : pml4 비우기 -> 원본 kva의 생존을 위해
 	// pml4_clear_page(thread_current()->pml4, src_page->va);
