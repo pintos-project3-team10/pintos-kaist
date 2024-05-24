@@ -138,6 +138,7 @@ void syscall_handler(struct intr_frame *f)
 		f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
 		break;
 	case SYS_MUNMAP:
+		munmap(f->R.rdi);
 		break;
 	default:
 		thread_exit();
@@ -263,8 +264,8 @@ int read(int fd, void *buffer, unsigned size)
 
 int write(int fd, const void *buffer, unsigned size)
 {
-	if (!(spt_find_page(&thread_current()->spt, buffer)->writable))
-		exit(-1);
+	// if (!(spt_find_page(&thread_current()->spt, buffer)->writable))
+	// 	exit(-1);
 	if (fd == 1)
 	{
 		putbuf(buffer, size);
@@ -362,4 +363,8 @@ void *mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 	// Todo : addr이 스택이나 다른 매핑된 페이지 세트를 침범 예외처리
 
 	return do_mmap(addr, length, writable, refile, offset);
+}
+
+void munmap(void *addr) {
+	do_munmap(addr);
 }

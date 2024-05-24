@@ -58,6 +58,8 @@ struct page
 	int writable;
 	int dirty;
 
+	int page_cnt;
+
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
 	union
