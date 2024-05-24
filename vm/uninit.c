@@ -51,11 +51,11 @@ uninit_initialize(struct page *page, void *kva)
 	vm_initializer *init = uninit->init;
 	void *aux = uninit->aux;
 
-	// uninit의 타입에 맞는 페이지 초기화함수를 실행 + init이 있으면 실행
+	// uninit의 타입에 맞는 페이지 초기화 함수를 실행 + init이 있으면 실행
 	return uninit->page_initializer(page, uninit->type, kva) &&
 		   (init ? init(page, aux) : true);
 }
-
+// pintos --gdb  --fs-disk=10 -p tests/vm/mmap-inherit:mmap-inherit -p ../../tests/vm/sample.txt:sample.txt -p tests/vm/child-inherit:child-inherit --swap-disk=4 -- -q   -f run mmap-inherit
 /* Free the resources hold by uninit_page. Although most of pages are transmuted
  * to other page objects, it is possible to have uninit pages when the process
  * exit, which are never referenced during the execution.

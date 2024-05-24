@@ -773,14 +773,6 @@ bool lazy_load_segment(struct page *page, void *aux)
 {
 	struct lazy_aux *la = aux;
 	file_seek(la->file, la->ofs);
-	/* TODO: Load the segment from the file */
-	/* TODO: This called when the first page fault occurs on address VA. */
-	/* TODO: VA is available when calling this function. */
-	// VA가 존재한다는 뜻 -> page에 할당된 frame이 존재한다는 뜻 -> page->frame_kva가 존재한다는 뜻
-	//
-	// ASSERT((la->page_read_bytes + la->page_zero_bytes) % PGSIZE == 0);
-	// ASSERT(pg_ofs(la->upage) == 0);
-	// ASSERT(la->ofs % PGSIZE == 0);
 
 	size_t page_read_bytes = la->page_read_bytes;
 	size_t page_zero_bytes = la->page_zero_bytes;

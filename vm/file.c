@@ -36,6 +36,7 @@ void vm_file_init(void)
 /* Initialize the file backed page */
 bool file_backed_initializer(struct page *page, enum vm_type type, void *kva)
 {
+	// TODO : 실패시 false처리
 	/* Set up the handler */
 	page->operations = &file_ops;
 	struct file_page *file_page = &page->file;
