@@ -98,6 +98,7 @@ void syscall_handler(struct intr_frame *f)
 		exit(f->R.rdi);
 		break;
 	case SYS_CREATE:
+
 		f->R.rax = create(f->R.rdi, f->R.rsi);
 		break;
 	case SYS_REMOVE:
@@ -136,6 +137,8 @@ void syscall_handler(struct intr_frame *f)
 	case SYS_MMAP:
 		f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
 		break;
+	case SYS_MUNMAP:
+		break;
 	default:
 		thread_exit();
 	}
@@ -157,13 +160,22 @@ void exit(int status)
 bool create(const char *file, unsigned initial_size)
 {
 	check_address(file);
-	return filesys_create(file, initial_size);
+	lock_acquire(&filesys_lock);
+	bool is_suc = filesys_create(file, initial_size);
+	lock_release(&filesys_lock);
+
+	return is_suc;
 }
 
 bool remove(const char *file)
 {
+
 	check_address(file);
-	return filesys_remove(file);
+	lock_acquire(&filesys_lock);
+	bool is_suc = filesys_remove(file);
+	lock_release(&filesys_lock);
+
+	return is_suc;
 }
 
 int open(const char *file)
@@ -195,6 +207,7 @@ void close(int fd)
 	check_fd(fd, cur_thread);
 
 	file_close(cur_thread->fd_table[fd]);
+
 	cur_thread->fd_table[fd] = NULL;
 }
 
@@ -313,14 +326,14 @@ void *mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 {
 	struct thread *cur_thread = thread_current();
 	struct file *file = cur_thread->fd_table[fd];
-
+	struct file *refile;
 	check_fd(fd, cur_thread);
-	// file 관련 예외처리 ---- -----------------
+	// file 관련 예외처리 ---------------------
 	// fd 예외처리
 	if (fd == 0 || fd == 1)
 		return NULL;
 	// 파일이 닫혔다면 다시 열기
-	if (!file_reopen(file))
+	if (!(refile = file_reopen(file)))
 		return NULL;
 	// file 사이즈 예외처리
 	if (filesize(fd) <= 0)
@@ -348,5 +361,5 @@ void *mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 
 	// Todo : addr이 스택이나 다른 매핑된 페이지 세트를 침범 예외처리
 
-	return do_mmap(addr, length, writable, file, offset);
+	return do_mmap(addr, length, writable, refile, offset);
 }

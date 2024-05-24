@@ -10,7 +10,15 @@
 
 // Frame_Table을 해쉬 테이블이 아닌 연결 리스트로 선언할 예정이기 때문에 Table -> List
 struct list frame_list;
-
+struct lazy_aux
+{
+	struct file *file;
+	off_t ofs;
+	uint8_t *upage;
+	uint32_t page_read_bytes;
+	uint32_t page_zero_bytes;
+	bool writable;
+};
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
 void vm_init(void)
@@ -340,12 +348,33 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 		// 복사할 page
 		struct page *src_page = hash_entry(hash_cur(&i), struct page, p_hash_elem);
 
+		// uninit
 		if (src_page->operations->type == VM_TYPE(VM_UNINIT))
 		{
 			if (!vm_alloc_page_with_initializer(page_get_type(src_page), src_page->va,
 												src_page->writable, src_page->uninit.init, src_page->uninit.aux))
 				return false;
+			// 초기화 전 file page
+			if (src_page->uninit.init == VM_TYPE(VM_FILE))
+			{
+				struct page *dst_page = spt_find_page(dst, src_page->va);
+				dst_page->file.la = malloc(sizeof(struct lazy_aux));
+				memcpy(dst_page->file.la, src_page->file.la, sizeof(struct lazy_aux));
+			}
 		}
+		// 초기화 후 file
+		else if (src_page->operations->type == VM_TYPE(VM_FILE))
+		{
+			if (!vm_alloc_page(page_get_type(src_page), src_page->va, src_page->writable))
+				return false;
+
+			struct page *dst_page = spt_find_page(dst, src_page->va);
+			dst_page->file.la = malloc(sizeof(struct lazy_aux));
+			memcpy(dst_page->file.la, src_page->file.la, sizeof(struct lazy_aux));
+			if (!vm_claim_page(dst_page->va))
+				return false;
+		}
+		// 초기화 후 anony
 		else
 		{
 			if (!vm_alloc_page(page_get_type(src_page), src_page->va, src_page->writable))
@@ -387,21 +416,22 @@ void page_kill(struct hash_elem *e, void *aux)
 	// 쓰고 난 후에 frame이 존재하면 해제
 	if (src_page->frame)
 	{
+		// 1. 실제 frame 해제 -> process clear의 pml4_destroy에서 다 하기 때문에 생략
+		// palloc_free_page(src_page->frame->kva);
 
-		// 1. 실제 frame 해 제
-		palloc_free_page(src_page->frame->kva);
 		// 2. frame_list에서 삭제
 		struct frame *out_frame = src_page->frame;
 		list_remove(&out_frame->f_elem);
 		// 3. frame 구조체 해제
 		free(src_page->frame);
 	}
+	// printf("---------\n");
 
 	// destroy 호출
-	src_page->operations->destroy;
+	// destroy(src_page);
 
-	// pml4 갱신
-	pml4_clear_page(thread_current()->pml4, src_page->va);
+	// copy on write : pml4 비우기 -> 원본 kva의 생존을 위해
+	// pml4_clear_page(thread_current()->pml4, src_page->va);
 
 	// page 메모리 해제
 	free(src_page);

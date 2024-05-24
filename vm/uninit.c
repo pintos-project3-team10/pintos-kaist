@@ -10,7 +10,7 @@
 
 #include "vm/vm.h"
 #include "vm/uninit.h"
-
+#include "threads/malloc.h"
 static bool uninit_initialize(struct page *page, void *kva);
 static void uninit_destroy(struct page *page);
 
@@ -52,6 +52,11 @@ uninit_initialize(struct page *page, void *kva)
 	void *aux = uninit->aux;
 
 	/* TODO: You may need to fix this function. */
+	if (uninit->type == VM_FILE)
+	{
+		return uninit->page_initializer(page, uninit->type, kva);
+	}
+
 	// uninit의 타입에 맞는 페이지 초기화함수를 실행 + init이 있으면 실행
 	return uninit->page_initializer(page, uninit->type, kva) &&
 		   (init ? init(page, aux) : true);
@@ -69,5 +74,6 @@ uninit_destroy(struct page *page)
 	 * TODO: If you don't have anything to do, just return. */
 
 	// load segment에서 할당받은 aux 할당 해제
-	free(uninit->aux);
+	// TODO : 이거 넣으면 안됨 why?
+	// free(uninit->aux);
 }
