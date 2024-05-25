@@ -158,7 +158,8 @@ file_backed_destroy(struct page *page)
 
 	// mummap을 할 때도 spt에서 제거해줘야 하니까
 	spt_remove_page(&thread_current()->spt, page);
+	// aux 삭제
 	free(file_page->aux);
-	// 이후에 다시 va에
+
 	pml4_clear_page(thread_current()->pml4, page->va);
 }

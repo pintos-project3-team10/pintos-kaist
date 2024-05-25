@@ -65,5 +65,5 @@ anon_destroy(struct page *page)
 	// spt에서 제거
 	spt_remove_page(&thread_current()->spt, page);
 	// pml4에서 제거
-	pml4_clear_page(thread_current()->pml4, page->va);
+	// pml4_clear_page(thread_current()->pml4, page->va);
 }
