@@ -57,6 +57,7 @@ struct page
 	// vm_do_claim_page에서 writable 찾는 과정을 줄이기 위해 주가
 	int writable;
 	int dirty;
+	int page_cnt; // mapping 할 때 사용된 페이지 개수
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */

@@ -52,4 +52,18 @@ static void
 anon_destroy(struct page *page)
 {
 	struct anon_page *anon_page = &page->anon;
+	// 연결된 프레임 처리
+	struct frame *out_frame = page->frame;
+	if (out_frame)
+	{
+		// 1. frame_list에서 삭제
+		list_remove(&out_frame->f_elem);
+		// 2. frame 구조체 해제
+		free(page->frame);
+	}
+
+	// spt에서 제거
+	spt_remove_page(&thread_current()->spt, page);
+	// pml4에서 제거
+	pml4_clear_page(thread_current()->pml4, page->va);
 }

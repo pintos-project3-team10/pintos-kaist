@@ -44,6 +44,7 @@ bool file_backed_initializer(struct page *page, enum vm_type type, void *kva)
 	free(page->uninit.aux);
 	file_page->aux = malloc(sizeof(struct lazy_aux));
 	memcpy(file_page->aux, &aux, sizeof(struct lazy_aux));
+	// file_page->aux = page->uninit.aux;
 
 	return true;
 }
@@ -75,6 +76,9 @@ do_mmap(void *addr, size_t length, int writable, struct file *file, off_t offset
 	else
 		read_bytes = length;
 
+	// 읽어야 하는 페이지 개수
+	int total_page_cnt = (read_bytes + PGSIZE - 1) / PGSIZE;
+
 	// 0 처리해야하는 바이트
 	size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
 
@@ -104,7 +108,9 @@ do_mmap(void *addr, size_t length, int writable, struct file *file, off_t offset
 		// 	return NULL;
 
 		// // page의 file_page 구조체에 정보 저장
-		// struct page *p = spt_find_page(&thread_current()->spt, temp);
+		struct page *p = spt_find_page(&thread_current()->spt, temp);
+		p->page_cnt = total_page_cnt;
+		total_page_cnt--;
 		// p->file.la = la;
 
 		/* Advance. */
@@ -119,17 +125,40 @@ do_mmap(void *addr, size_t length, int writable, struct file *file, off_t offset
 /* Do the munmap */
 void do_munmap(void *addr)
 {
+	struct page *p = spt_find_page(&thread_current()->spt, addr);
+	int cnt = p->page_cnt;
+	for (int i = 0; i < cnt; i++)
+	{
+		destroy(p);
+		addr = addr + PGSIZE;
+		p = spt_find_page(&thread_current()->spt, addr);
+	}
 }
 /* Destory the file backed page. PAGE will be freed by the caller. */
 static void
 file_backed_destroy(struct page *page)
 {
 	struct file_page *file_page UNUSED = &page->file;
-	struct lazy_aux aux = *file_page->aux;
 	// TODO: dirty 확인하고 맞다면 디스크에 쓰기
-	if (pml4_is_dirty(thread_current()->pml4, page))
+	if (pml4_is_dirty(thread_current()->pml4, page->va))
 	{
 		file_write_at(file_page->aux->file, page->va, file_page->aux->page_read_bytes, file_page->aux->ofs);
+		pml4_set_dirty(thread_current()->pml4, page->va, 0);
 	}
+
+	// 연결된 프레임 처리
+	struct frame *out_frame = page->frame;
+	if (out_frame)
+	{
+		// 1. frame_list에서 삭제
+		list_remove(&out_frame->f_elem);
+		// 2. frame 구조체 해제
+		free(page->frame);
+	}
+
+	// mummap을 할 때도 spt에서 제거해줘야 하니까
+	spt_remove_page(&thread_current()->spt, page);
 	free(file_page->aux);
+	// 이후에 다시 va에
+	pml4_clear_page(thread_current()->pml4, page->va);
 }

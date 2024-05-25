@@ -135,7 +135,9 @@ bool spt_insert_page(struct supplemental_page_table *spt UNUSED,
 
 void spt_remove_page(struct supplemental_page_table *spt, struct page *page)
 {
-	vm_dealloc_page(page);
+	// vm_dealloc_page(page);
+	if (hash_delete(&spt->spt_hash_table, &page->p_hash_elem))
+		return false;
 	return true;
 }
 
@@ -405,15 +407,6 @@ void page_kill(struct hash_elem *e, void *aux)
 	// 없다면 종료
 	if (!src_page)
 		return;
-	// frame이 존재시
-	if (src_page->frame)
-	{
-		// 1. frame_list에서 삭제
-		struct frame *out_frame = src_page->frame;
-		list_remove(&out_frame->f_elem);
-		// 2. frame 구조체 해제
-		free(src_page->frame);
-	}
 
 	// destroy 호출
 	destroy(src_page);

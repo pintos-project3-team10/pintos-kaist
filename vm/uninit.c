@@ -14,6 +14,15 @@
 static bool uninit_initialize(struct page *page, void *kva);
 static void uninit_destroy(struct page *page);
 
+struct lazy_aux
+{
+	struct file *file;
+	off_t ofs;
+	uint8_t *upage;
+	uint32_t page_read_bytes;
+	uint32_t page_zero_bytes;
+	bool writable;
+};
 /* DO NOT MODIFY this struct */
 static const struct page_operations uninit_ops = {
 	.swap_in = uninit_initialize,
@@ -64,10 +73,7 @@ static void
 uninit_destroy(struct page *page)
 {
 	struct uninit_page *uninit UNUSED = &page->uninit;
-	/* TODO: Fill this function.
-	 * TODO: If you don't have anything to do, just return. */
+	struct lazy_aux *la = uninit->aux;
 
-	// load segment에서 할당받은 aux 할당 해제
-	// TODO : 이거 넣으면 안됨 why?
 	// free(uninit->aux);
 }
