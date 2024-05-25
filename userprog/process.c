@@ -29,15 +29,6 @@ static void initd(void *f_name);
 static void __do_fork(void *);
 
 struct lock load_lock;
-struct lazy_aux
-{
-	struct file *file;
-	off_t ofs;
-	uint8_t *upage;
-	uint32_t page_read_bytes;
-	uint32_t page_zero_bytes;
-	bool writable;
-};
 
 /* General process initializer for initd and other process. */
 static void

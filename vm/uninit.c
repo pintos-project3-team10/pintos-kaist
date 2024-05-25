@@ -14,15 +14,6 @@
 static bool uninit_initialize(struct page *page, void *kva);
 static void uninit_destroy(struct page *page);
 
-struct lazy_aux
-{
-	struct file *file;
-	off_t ofs;
-	uint8_t *upage;
-	uint32_t page_read_bytes;
-	uint32_t page_zero_bytes;
-	bool writable;
-};
 /* DO NOT MODIFY this struct */
 static const struct page_operations uninit_ops = {
 	.swap_in = uninit_initialize,
@@ -74,6 +65,9 @@ uninit_destroy(struct page *page)
 {
 	struct uninit_page *uninit UNUSED = &page->uninit;
 	struct lazy_aux *la = uninit->aux;
-
-	// free(uninit->aux);
+	free(uninit->aux);
+	// if (la->reference_cnt == 1)
+	// 	free(uninit->aux);
+	// else
+	// 	la->reference_cnt--;
 }

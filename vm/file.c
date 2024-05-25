@@ -10,16 +10,6 @@ static bool file_backed_swap_in(struct page *page, void *kva);
 static bool file_backed_swap_out(struct page *page);
 static void file_backed_destroy(struct page *page);
 
-struct lazy_aux
-{
-	struct file *file;
-	off_t ofs;
-	uint8_t *upage;
-	uint32_t page_read_bytes;
-	uint32_t page_zero_bytes;
-	bool writable;
-};
-
 /* DO NOT MODIFY this struct */
 static const struct page_operations file_ops = {
 	.swap_in = file_backed_swap_in,
@@ -40,11 +30,11 @@ bool file_backed_initializer(struct page *page, enum vm_type type, void *kva)
 	/* Set up the handler */
 	page->operations = &file_ops;
 	struct file_page *file_page = &page->file;
-	struct lazy_aux aux = *(struct lazy_aux *)page->uninit.aux;
-	free(page->uninit.aux);
-	file_page->aux = malloc(sizeof(struct lazy_aux));
-	memcpy(file_page->aux, &aux, sizeof(struct lazy_aux));
-	// file_page->aux = page->uninit.aux;
+	// struct lazy_aux aux = *(struct lazy_aux *)page->uninit.aux;
+	// free(page->uninit.aux);
+	// file_page->aux = malloc(sizeof(struct lazy_aux));
+	// memcpy(file_page->aux, &aux, sizeof(struct lazy_aux));
+	file_page->aux = page->uninit.aux;
 
 	return true;
 }
@@ -150,16 +140,17 @@ file_backed_destroy(struct page *page)
 	struct frame *out_frame = page->frame;
 	if (out_frame)
 	{
+		palloc_free_page(out_frame->kva);
 		// 1. frame_list에서 삭제
 		list_remove(&out_frame->f_elem);
 		// 2. frame 구조체 해제
 		free(page->frame);
 	}
 
+	free(file_page->aux);
 	// mummap을 할 때도 spt에서 제거해줘야 하니까
 	spt_remove_page(&thread_current()->spt, page);
 	// aux 삭제
-	free(file_page->aux);
-
+	// 파일 공유 때문에하는 부분
 	pml4_clear_page(thread_current()->pml4, page->va);
 }

@@ -3,7 +3,16 @@
 #include <stdbool.h>
 #include "threads/palloc.h"
 #include <hash.h>
-
+#include "filesys/off_t.h"
+struct lazy_aux
+{
+	struct file *file;
+	off_t ofs;
+	uint8_t *upage;
+	uint32_t page_read_bytes;
+	uint32_t page_zero_bytes;
+	bool writable;
+};
 enum vm_type
 {
 	/* page not initialized */
