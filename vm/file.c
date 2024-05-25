@@ -6,6 +6,8 @@
 #include "threads/mmu.h"
 #include "threads/malloc.h"
 #include "lib/string.h"
+#include "filesys/filesys.h"
+
 static bool file_backed_swap_in(struct page *page, void *kva);
 static bool file_backed_swap_out(struct page *page);
 static void file_backed_destroy(struct page *page);
@@ -44,6 +46,11 @@ static bool
 file_backed_swap_in(struct page *page, void *kva)
 {
 	struct file_page *file_page UNUSED = &page->file;
+	lock_acquire(&filesys_lock);
+	// file_read_at(file_page->aux->file, page->va, file_page->aux->page_read_bytes, file_page->aux->ofs);
+	lazy_load_segment(page, file_page->aux);
+	lock_release(&filesys_lock);
+	pml4_set_dirty(thread_current()->pml4, page->va, 0);
 }
 
 /* Swap out the page by writeback contents to the file. */
@@ -51,6 +58,14 @@ static bool
 file_backed_swap_out(struct page *page)
 {
 	struct file_page *file_page UNUSED = &page->file;
+	// TODO: dirty 확인하고 맞다면 디스크에 쓰기
+	if (pml4_is_dirty(thread_current()->pml4, page->va))
+	{
+		lock_acquire(&filesys_lock);
+		file_write_at(file_page->aux->file, page->va, file_page->aux->page_read_bytes, file_page->aux->ofs);
+		lock_release(&filesys_lock);
+		pml4_set_dirty(thread_current()->pml4, page->va, 0);
+	}
 }
 
 /* Do the mmap */

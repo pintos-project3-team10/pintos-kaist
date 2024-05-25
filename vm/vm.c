@@ -133,25 +133,29 @@ void spt_remove_page(struct supplemental_page_table *spt, struct page *page)
 	return true;
 }
 
-/* Get the struct frame, that will be evicted. */
+/* Get the struct frame, that will be  evicted. */
+// 희생자 프레임 찾기
 static struct frame *
 vm_get_victim(void)
 {
-	struct frame *victim = NULL;
-	/* TODO: The policy for eviction is up to you. */
-
+	// 일단 가장 앞의
+	struct frame *victim = list_entry(list_pop_front(&frame_list), struct frame, f_elem);
 	return victim;
 }
 
 /* Evict one page and return the corresponding frame.
  * Return NULL on error.*/
+// 찾은 프레임 비우고(swap out) 빈 프레임  반환하기
 static struct frame *
 vm_evict_frame(void)
 {
-	struct frame *victim UNUSED = vm_get_victim();
-	/* TODO: swap out the victim and return the evicted frame. */
-
-	return NULL;
+	printf("-------\n");
+	struct frame *victim = vm_get_victim();
+	// 삭제될 페이지와 연결된 페이지 swap out;
+	swap_out(victim->page);
+	// swap out한 페이지 pml4에 반영
+	pml4_clear_page(thread_current()->pml4, victim->page->va);
+	return victim;
 }
 
 /* palloc() and get frame. If there is no available page, evict the page
@@ -171,12 +175,19 @@ vm_get_frame(void)
 	// frame을 user pool에서 할당받는다.
 	void *kva = palloc_get_page(PAL_USER | PAL_ZERO);
 
-	if (!frame)
-		PANIC("todo");
-
-	// frame 초기화
-	frame->kva = kva;
-	frame->page = NULL;
+	//	이부분을 지나면 반드시 frame은 할당되어야 한다.
+	if (!frame || !kva)
+	{
+		frame = vm_evict_frame();
+		frame->page->frame = NULL;
+		frame->page = NULL;
+	}
+	else
+	{
+		// frame 초기화
+		frame->kva = kva;
+		frame->page = NULL;
+	}
 
 	// 할당한 frame 을 frame_list에 추가
 	list_push_back(&frame_list, &frame->f_elem);
@@ -202,12 +213,6 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: Validate the fault */
 	if (!not_present)
 		return false;
-
-	// if (!user && !write && !not_present)
-	// {
-	// 	printf("--------");
-	// 	return false;
-	// }
 
 	// kernel에서 page fault가 일어나는 경우는 syscall_handler에서 확인하기 때문에 여기서는 확인하지 않는다.
 	// 유저의 rsp

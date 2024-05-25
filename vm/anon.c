@@ -3,9 +3,11 @@
 #include "vm/vm.h"
 #include "devices/disk.h"
 #include "threads/mmu.h"
+#include "bitmap.h"
 
 /* DO NOT MODIFY BELOW LINE */
 static struct disk *swap_disk;
+static struct bitmap *swap_table;
 static bool anon_swap_in(struct page *page, void *kva);
 static bool anon_swap_out(struct page *page);
 static void anon_destroy(struct page *page);
@@ -21,8 +23,12 @@ static const struct page_operations anon_ops = {
 /* Initialize the data for anonymous pages */
 void vm_anon_init(void)
 {
-	/* TODO: Set up the swap_disk. */
-	swap_disk = NULL;
+	// swap_disk 영역 연결
+	swap_disk = disk_get(1, 1);
+	// 디스크를 slot(8 * sector)으로 설정하고, swap_table로 관리
+	// 초기 비트들은 flase
+	swap_table = bitmap_create((disk_size(swap_disk) + 7) / 8);
+	// disk_lock 초기화
 }
 
 /* Initialize the file mapping */
@@ -31,7 +37,6 @@ bool anon_initializer(struct page *page, enum vm_type type, void *kva)
 	/* Set up the handler */
 	page->operations = &anon_ops;
 	struct anon_page *anon_page = &page->anon;
-	// anon은 초기화시 전부 0이라 할게 없다.
 
 	return true;
 }
@@ -41,6 +46,14 @@ static bool
 anon_swap_in(struct page *page, void *kva)
 {
 	struct anon_page *anon_page = &page->anon;
+	uint64_t start_sec_no = anon_page->slot_no;
+
+	// swap 영역에서 올렸기 때문에 다시 돌려놓는다.
+	bitmap_flip(swap_table, start_sec_no);
+	// dist의 slot에 쓰여진 context 다시 읽어오기
+	for (int i = 0; i < 8; i++)
+		disk_read(swap_disk, start_sec_no + i, page->frame->kva + DISK_SECTOR_SIZE * i);
+	return true;
 }
 
 /* Swap out the page by writing contents to the swap disk. */
@@ -48,6 +61,20 @@ static bool
 anon_swap_out(struct page *page)
 {
 	struct anon_page *anon_page = &page->anon;
+	// swap_map에서 빈 공간 찾기
+	// bitmap_scan_and_flip 함수 설명
+	// 비트밉에서 2번째 인자부터 시작해서, 3번째 인자만큼 연속으로,
+	// 4번째 value를 가진 그룹을 찾아서, 시작 idx를 반환bitmap_scan_and_flip(swap_table, 0, 1, false)
+
+	uint64_t start_bitmap_no = bitmap_scan_and_flip(swap_table, 0, 1, false);
+	if (start_bitmap_no == BITMAP_ERROR)
+		return false;
+	uint64_t start_sec_no = start_bitmap_no * 8;
+	// 찾은 index로 disk에서 위치 선택
+	for (int i = 0; i < 8; i++)
+		disk_write(swap_disk, start_sec_no + i, page->frame->kva + DISK_SECTOR_SIZE * i);
+
+	anon_page->slot_no = start_sec_no;
 }
 
 /* Destroy the anonymous page. PAGE will be freed by the caller. */
@@ -60,6 +87,7 @@ anon_destroy(struct page *page)
 	if (out_frame)
 	{
 		// // 1. 연결된 frame의 실제 공간 해제
+		// // process_cleanup에서 destroy를 해서 없어도 된다.
 		// palloc_free_page(out_frame->kva);
 
 		// 2. frame_list에서 삭제
@@ -73,6 +101,6 @@ anon_destroy(struct page *page)
 	// 어차피 hash_clear반복문 돌면서 제거함
 	// spt_remove_page(&thread_current()->spt, page);
 	// pml4에서 제거
-	// 어차피 process clean up에서 해준다..? 근데 거기서 못찾게 spt에서 제거하는데?
+	// 어차피 따로 없애는 코드가 없기 때문에, process_cleanup에서 destroy를 해서 없어도 된다.
 	// pml4_clear_page(thread_current()->pml4, page->va);
 }

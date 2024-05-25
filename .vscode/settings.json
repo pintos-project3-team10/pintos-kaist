@@ -13,6 +13,7 @@
         "mmu.h": "c",
         "*.inc": "c",
         "string.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "filesys.h": "c"
     }
 }

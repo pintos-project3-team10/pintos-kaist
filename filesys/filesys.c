@@ -12,11 +12,12 @@
 struct disk *filesys_disk;
 
 static void do_format(void);
-
+struct lock filesys_lock;
 /* Initializes the file system module.
  * If FORMAT is true, reformats the file system. */
 void filesys_init(bool format)
 {
+	lock_init(&filesys_lock);
 	filesys_disk = disk_get(0, 1);
 	if (filesys_disk == NULL)
 		PANIC("hd0:1 (hdb) not present, file system initialization failed");

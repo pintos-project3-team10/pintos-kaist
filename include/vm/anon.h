@@ -6,6 +6,7 @@ enum vm_type;
 
 struct anon_page
 {
+    uint64_t slot_no;
 };
 
 void vm_anon_init(void);
