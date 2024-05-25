@@ -47,8 +47,8 @@ file_backed_swap_in(struct page *page, void *kva)
 {
 	struct file_page *file_page UNUSED = &page->file;
 	lock_acquire(&filesys_lock);
-	// file_read_at(file_page->aux->file, page->va, file_page->aux->page_read_bytes, file_page->aux->ofs);
-	lazy_load_segment(page, file_page->aux);
+	file_read_at(file_page->aux->file, page->va, file_page->aux->page_read_bytes, file_page->aux->ofs);
+	// lazy_load_segment(page, file_page->aux);
 	lock_release(&filesys_lock);
 	pml4_set_dirty(thread_current()->pml4, page->va, 0);
 }

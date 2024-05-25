@@ -37,6 +37,7 @@ bool anon_initializer(struct page *page, enum vm_type type, void *kva)
 	/* Set up the handler */
 	page->operations = &anon_ops;
 	struct anon_page *anon_page = &page->anon;
+	anon_page->slot_no = -1;
 
 	return true;
 }
@@ -46,13 +47,16 @@ static bool
 anon_swap_in(struct page *page, void *kva)
 {
 	struct anon_page *anon_page = &page->anon;
-	uint64_t start_sec_no = anon_page->slot_no;
-
-	// swap 영역에서 올렸기 때문에 다시 돌려놓는다.
-	bitmap_flip(swap_table, start_sec_no);
+	if (anon_page->slot_no == -1)
+		return true;
 	// dist의 slot에 쓰여진 context 다시 읽어오기
 	for (int i = 0; i < 8; i++)
-		disk_read(swap_disk, start_sec_no + i, page->frame->kva + DISK_SECTOR_SIZE * i);
+		disk_read(swap_disk, anon_page->slot_no * 8 + i, kva + DISK_SECTOR_SIZE * i);
+
+	// swap 영역에서 올렸기 때문에 다시 돌려놓는다.
+	bitmap_set(swap_table, anon_page->slot_no, true);
+
+	// bitmap_flip(swap_table, anon_page->slot_no);
 	return true;
 }
 
@@ -69,12 +73,12 @@ anon_swap_out(struct page *page)
 	uint64_t start_bitmap_no = bitmap_scan_and_flip(swap_table, 0, 1, false);
 	if (start_bitmap_no == BITMAP_ERROR)
 		return false;
-	uint64_t start_sec_no = start_bitmap_no * 8;
+	anon_page->slot_no = start_bitmap_no;
 	// 찾은 index로 disk에서 위치 선택
 	for (int i = 0; i < 8; i++)
-		disk_write(swap_disk, start_sec_no + i, page->frame->kva + DISK_SECTOR_SIZE * i);
+		disk_write(swap_disk, start_bitmap_no * 8 + i, page->frame->kva + DISK_SECTOR_SIZE * i);
 
-	anon_page->slot_no = start_sec_no;
+	return true;
 }
 
 /* Destroy the anonymous page. PAGE will be freed by the caller. */

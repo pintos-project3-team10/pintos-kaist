@@ -149,7 +149,7 @@ vm_get_victim(void)
 static struct frame *
 vm_evict_frame(void)
 {
-	printf("-------\n");
+	// printf("-------\n");
 	struct frame *victim = vm_get_victim();
 	// 삭제될 페이지와 연결된 페이지 swap out;
 	swap_out(victim->page);
