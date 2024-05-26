@@ -4,6 +4,7 @@
 #include "threads/palloc.h"
 #include <hash.h>
 #include "filesys/off_t.h"
+extern struct lock frame_lock;
 struct lazy_aux
 {
 	struct file *file;

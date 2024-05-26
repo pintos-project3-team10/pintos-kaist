@@ -11,12 +11,13 @@
 
 // Frame_Table을 해쉬 테이블이 아닌 연결 리스트로 선언할 예정이기 때문에 Table -> List
 struct list frame_list;
-
+struct lock frame_lock;
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
 void vm_init(void)
 {
 	list_init(&frame_list);
+	lock_init(&frame_lock);
 	vm_anon_init();
 	vm_file_init();
 #ifdef EFILESYS /* For project 4 */
@@ -139,7 +140,9 @@ static struct frame *
 vm_get_victim(void)
 {
 	// 일단 가장 앞의
+	lock_acquire(&frame_lock);
 	struct frame *victim = list_entry(list_pop_front(&frame_list), struct frame, f_elem);
+	lock_release(&frame_lock);
 	return victim;
 }
 
@@ -179,6 +182,7 @@ vm_get_frame(void)
 	if (!frame || !kva)
 	{
 		frame = vm_evict_frame();
+		memset(frame->kva, 0, PGSIZE);
 		frame->page->frame = NULL;
 		frame->page = NULL;
 	}
@@ -188,9 +192,10 @@ vm_get_frame(void)
 		frame->kva = kva;
 		frame->page = NULL;
 	}
-
 	// 할당한 frame 을 frame_list에 추가
+	lock_acquire(&frame_lock);
 	list_push_back(&frame_list, &frame->f_elem);
+	lock_release(&frame_lock);
 
 	ASSERT(frame != NULL);
 	ASSERT(frame->page == NULL);
@@ -222,7 +227,10 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 
 	// 입력된 addr이 스택영역이라면
 	if (is_in_stack_segment(addr, f_rsp))
+	{
 		vm_stack_growth(addr);
+		return true;
+	}
 
 	/* TODO: Your code goes here */
 	if (page = spt_find_page(spt, addr))

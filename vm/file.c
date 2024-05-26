@@ -51,6 +51,7 @@ file_backed_swap_in(struct page *page, void *kva)
 	// lazy_load_segment(page, file_page->aux);
 	lock_release(&filesys_lock);
 	pml4_set_dirty(thread_current()->pml4, page->va, 0);
+	return true;
 }
 
 /* Swap out the page by writeback contents to the file. */
@@ -66,6 +67,7 @@ file_backed_swap_out(struct page *page)
 		lock_release(&filesys_lock);
 		pml4_set_dirty(thread_current()->pml4, page->va, 0);
 	}
+	return true;
 }
 
 /* Do the mmap */
@@ -156,16 +158,20 @@ file_backed_destroy(struct page *page)
 	if (out_frame)
 	{
 		palloc_free_page(out_frame->kva);
+
+		lock_acquire(&frame_lock);
 		// 1. frame_list에서 삭제
 		list_remove(&out_frame->f_elem);
+		lock_release(&frame_lock);
+
 		// 2. frame 구조체 해제
 		free(page->frame);
 	}
 
 	free(file_page->aux);
-	// mummap을 할 때도 spt에서 제거해줘야 하니까
+	//  mummap을 할 때도 spt에서 제거해줘야 하니까
 	spt_remove_page(&thread_current()->spt, page);
-	// aux 삭제
-	// 파일 공유 때문에하는 부분
+	//  aux 삭제
+	//  파일 공유 때문에하는 부분
 	pml4_clear_page(thread_current()->pml4, page->va);
 }
